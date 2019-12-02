@@ -13,7 +13,7 @@ The final goal is to get all the 50 gold stars.
 
 ## Project organisation
 
-Each year has is own directory and for each days of the calendar a respective project folder with is own cargo file.
+Each year has is own directory and for each day of the calendar a respective project folder with its own cargo file.
 
 ## What's my aim ?
 
