@@ -57,3 +57,34 @@ To help us in our reparation our teammates stayed at land, give us theses exampl
 - I know, now, how to implement a trait on enum, I use it to convert the opcode value as
 an enum variation using the `From` trait.
 - I learned how to split a string and convert its parts as integer
+
+## Part 2
+
+### Problem
+
+Same thing as part 1 but reversed, you know the final output and you need to find the 2 inputs.
+
+Inputs values are between [0; 99] inclusive.
+
+The goal of the puzzle is to determine which inputs gives the output `19690720`
+
+### Resolution
+
+Maybe there is a more elegant way, but I didn't find one. So brute force, I'll try each tuple of alternative.
+Until get `19690720` as output.
+
+### What I've learned
+
+- How to clone an array
+
+## Conclusion
+
+This puzzle pushed me to try various element of the Rust language, I a bit low about the part 2 because
+I didn't any clever way expect brute-force to solve it.
+
+## Puzzle mark
+Language skills: ⭐⭐☆☆☆
+
+Puzzle: ⭐⭐⭐☆☆
+
+Background story : ⭐⭐⭐⭐☆
