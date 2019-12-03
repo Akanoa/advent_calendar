@@ -24,7 +24,7 @@ Have fun 😃.
 
 ## Twitch
 
-I'll maybe stream my puzzles solving on Twitch [https://www.twitch.tv/akanoa](). Feel free to say hello 👋.
+I'll maybe stream my puzzles solving on Twitch [https://www.twitch.tv/akanoa](https://www.twitch.tv/akanoa). Feel free to say hello 👋.
 
 I'm usually here after 9PM UTC+1.
 
