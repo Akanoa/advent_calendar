@@ -79,8 +79,8 @@ Until get `19690720` as output.
 
 ## Conclusion
 
-This puzzle pushed me to try various element of the Rust language, I a bit low about the part 2 because
-I didn't any clever way expect brute-force to solve it.
+This puzzle pushed me to try various elements of the Rust language, I'm a bit low about the part 2 because
+I didn't find any clever way expect the brute-force to solve it.
 
 ## Puzzle mark
 Language skills: ⭐⭐☆☆☆
