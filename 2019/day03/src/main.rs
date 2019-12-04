@@ -1,4 +1,3 @@
-#[macro_use]
 use day03;
 use day03::part_1;
 

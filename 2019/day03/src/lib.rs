@@ -27,10 +27,12 @@ mod macros {
                             temp_vec.push(new_pos);
                         }
                     }
-
                     previous_pos = (prev_x + $x, prev_y + $y);
 
                 )*
+                // the last previous_prev must be used, because after the last macro expansion this variable
+                // becomes orphan
+                drop(&previous_pos);
                 temp_vec
             }
         };
@@ -62,7 +64,7 @@ mod macros {
             }
         }
     }
-    macro_rules! hashset_fill {
+    macro_rules! hashed_fill {
         ($type:ty ,$vec:expr) => {
             {
                 let mut hashset : HashSet<$type> = HashSet::new();
@@ -138,8 +140,8 @@ impl Wire {
     }
 
     fn intersect(&self, other: &Wire) -> Vec<(i32, i32)> {
-        let set1 : HashSet<(i32, i32)> = hashset_fill!((i32, i32), self.get_points());
-        let set2 : HashSet<(i32, i32)> = hashset_fill!((i32, i32), other.get_points());
+        let set1 : HashSet<(i32, i32)> = hashed_fill!((i32, i32), self.get_points());
+        let set2 : HashSet<(i32, i32)> = hashed_fill!((i32, i32), other.get_points());
 
         let mut result = vec![];
         for point in set1.intersection(&set2) {
@@ -248,9 +250,9 @@ mod tests {
         let wire1 = Wire::new(vec![(8, 0), (0, 5), (-5, 0), (0, -3)]);
         let wire2 = Wire::new(vec![(0, 7), (6, 0), (0, -4), (-4, 0)]);
 
-        let intersections = hashset_fill!((i32, i32), wire1.intersect(&wire2));
-        let expected_hashset = hashset_fill!((i32, i32), vec![(6,5), (3,3)]);
-        let hash_intersection = expected_hashset.difference(&intersections);
+        let intersections = hashed_fill!((i32, i32), wire1.intersect(&wire2));
+        let expected_hashed = hashed_fill!((i32, i32), vec![(6,5), (3,3)]);
+        let hash_intersection = expected_hashed.difference(&intersections);
         assert_eq!(hash_intersection.count(), 0);
     }
 
