@@ -144,7 +144,7 @@ impl Wire {
 
     fn get_min_intersection_manhattan_distance(&self, other: &Wire) -> u32 {
         let intersections = self.intersect(&other);
-        let distances = intersections.into_iter().map(|(x, y)| x+y)
+        let distances = intersections.into_iter().map(|(x, y)| x.abs()+y.abs())
             .collect::<Vec<i32>>();
 
         let mut min  = distances[0];
