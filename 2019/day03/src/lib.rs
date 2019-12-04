@@ -200,8 +200,10 @@ pub fn part_1() -> u32{
 
 #[cfg(test)]
 mod tests {
+
     use std::path::PathBuf;
     use crate::{load_from_file, Wire, Command};
+    use std::collections::HashSet;
 
     #[test]
     fn test_load_from_file() {
@@ -246,8 +248,10 @@ mod tests {
         let wire1 = Wire::new(vec![(8, 0), (0, 5), (-5, 0), (0, -3)]);
         let wire2 = Wire::new(vec![(0, 7), (6, 0), (0, -4), (-4, 0)]);
 
-        let intersections = wire1.intersect(&wire2);
-        assert_eq!(intersections, vec![(6,5), (3,3)]);
+        let intersections = hashset_fill!((i32, i32), wire1.intersect(&wire2));
+        let expected_hashset = hashset_fill!((i32, i32), vec![(6,5), (3,3)]);
+        let hash_intersection = expected_hashset.difference(&intersections);
+        assert_eq!(hash_intersection.count(), 0);
     }
 
     #[test]
