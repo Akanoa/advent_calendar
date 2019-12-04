@@ -62,6 +62,18 @@ mod macros {
             }
         }
     }
+    macro_rules! hashset_fill {
+        ($type:ty ,$vec:expr) => {
+            {
+                let mut hashset : HashSet<$type> = HashSet::new();
+                for x in $vec {
+                    hashset.insert(x);
+                }
+                hashset
+            }
+
+        };
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -126,14 +138,8 @@ impl Wire {
     }
 
     fn intersect(&self, other: &Wire) -> Vec<(i32, i32)> {
-        let mut set1 : HashSet<(i32, i32)> = HashSet::new();
-        let mut set2 : HashSet<(i32, i32)> = HashSet::new();
-        for point in self.get_points() {
-            set1.insert(point);
-        }
-        for point in other.get_points() {
-            set2.insert(point);
-        }
+        let set1 : HashSet<(i32, i32)> = hashset_fill!((i32, i32), self.get_points());
+        let set2 : HashSet<(i32, i32)> = hashset_fill!((i32, i32), other.get_points());
 
         let mut result = vec![];
         for point in set1.intersection(&set2) {
