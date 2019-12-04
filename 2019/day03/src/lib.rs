@@ -2,30 +2,61 @@ use std::path::PathBuf;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
+use std::collections::HashSet;
 
 #[macro_use]
 mod macros {
     macro_rules! points_from_command {
         ( $( ($x:expr, $y:expr)), *) => {
             {
-                let mut temp_vec : Vec<(i32, i32)> =  vec![(0, 0)];
+                let mut temp_vec : Vec<(i32, i32)> =  vec![];
                 let mut previous_pos = (0, 0);
                 $(
                     let (prev_x, prev_y) = previous_pos;
+
+                    if $x != 0 {
+                        for i in 1..($x as i32).abs() + 1 {
+                            let new_pos = (prev_x + i * ($x as i32).signum(), prev_y);
+                            temp_vec.push(new_pos);
+                        }
+                    }
+
+                    if $y != 0 {
+                        for i in 1..($y as i32).abs() + 1 {
+                            let new_pos = (prev_x, prev_y + i * ($y as i32).signum());
+                            temp_vec.push(new_pos);
+                        }
+                    }
+
                     previous_pos = (prev_x + $x, prev_y + $y);
-                    temp_vec.push(previous_pos);
+
                 )*
                 temp_vec
             }
         };
         ($vec:expr) => {
             {
-                let mut temp_vec : Vec<(i32, i32)> =  vec![(0, 0)];
+                let mut temp_vec : Vec<(i32, i32)> =  vec![];
                 let mut previous_pos = (0, 0);
                 for (x, y) in $vec {
                     let (prev_x, prev_y) = previous_pos;
+
+
+                    if x != 0 {
+                        for i in 1..(x as i32).abs() + 1 {
+                            let new_pos = (prev_x + i * (x as i32).signum(), prev_y);
+                            temp_vec.push(new_pos);
+                        }
+                    }
+
+                    if y != 0 {
+                        for i in 1..(y as i32).abs() + 1 {
+                            let new_pos = (prev_x, prev_y + i * (y as i32).signum());
+                            temp_vec.push(new_pos);
+                        }
+                    }
+
                     previous_pos = (prev_x + x, prev_y + y);
-                    temp_vec.push(previous_pos);
                 }
             temp_vec
             }
@@ -33,7 +64,7 @@ mod macros {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 struct Wire {
     path: Vec<(i32, i32)>
 }
@@ -93,6 +124,37 @@ impl Wire {
         let path = self.path.clone();
         points_from_command![path]
     }
+
+    fn intersect(&self, other: &Wire) -> Vec<(i32, i32)> {
+        let mut set1 : HashSet<(i32, i32)> = HashSet::new();
+        let mut set2 : HashSet<(i32, i32)> = HashSet::new();
+        for point in self.get_points() {
+            set1.insert(point);
+        }
+        for point in other.get_points() {
+            set2.insert(point);
+        }
+
+        let mut result = vec![];
+        for point in set1.intersection(&set2) {
+            result.push(*point);
+        }
+        result
+    }
+
+    fn get_min_intersection_manhattan_distance(&self, other: &Wire) -> u32 {
+        let intersections = self.intersect(&other);
+        let distances = intersections.into_iter().map(|(x, y)| x+y)
+            .collect::<Vec<i32>>();
+
+        let mut min  = distances[0];
+        for d in distances {
+            if d < min {
+                min = d;
+            }
+        }
+        min as u32
+    }
 }
 
 
@@ -121,6 +183,14 @@ fn load_from_file(path: PathBuf) -> Result<Vec<Wire>, Box<dyn Error>>{
     Ok(wires)
 }
 
+pub fn part_1() -> u32{
+    let path = PathBuf::from("./assets/configuration_prod.txt");
+    let mut result = load_from_file(path).unwrap();
+    let wire1 = result.pop().unwrap();
+    let wire2 = result.pop().unwrap();
+
+    wire1.get_min_intersection_manhattan_distance(&wire2)
+}
 
 #[cfg(test)]
 mod tests {
@@ -154,13 +224,52 @@ mod tests {
     fn test_path_to_point() {
 
         // test the macro
-        let points = points_from_command![(1, 0), (0, 1)];
-        assert_eq!(vec![(0, 0), (1, 0), (1, 1)], points);
+        let points = points_from_command![(1, 0), (0, 2)];
+        assert_eq!(points, vec![(1, 0), (1, 1), (1, 2)]);
 
-        let points2 = points_from_command![vec![(1, 0), (0, 1)]];
-        assert_eq!(vec![(0, 0), (1, 0), (1, 1)], points2);
+        let points2 = points_from_command![vec![(1, 0), (0, 2)]];
+        assert_eq!(points2, vec![(1, 0), (1, 1), (1, 2)]);
 
         let points3 = Wire::new(vec![(1, 0), (0, 1)]).get_points();
-        assert_eq!(vec![(0, 0), (1, 0), (1, 1)], points3);
+        assert_eq!(vec![(1, 0), (1, 1)], points3);
+    }
+
+    #[test]
+    fn test_intersection() {
+
+        let wire1 = Wire::new(vec![(8, 0), (0, 5), (-5, 0), (0, -3)]);
+        let wire2 = Wire::new(vec![(0, 7), (6, 0), (0, -4), (-4, 0)]);
+
+        let intersections = wire1.intersect(&wire2);
+        assert_eq!(intersections, vec![(6,5), (3,3)]);
+    }
+
+    #[test]
+    fn test_get_min_intersection_manhattan_distance() {
+        let wire1 = Wire::new(vec![(8, 0), (0, 5), (-5, 0), (0, -3)]);
+        let wire2 = Wire::new(vec![(0, 7), (6, 0), (0, -4), (-4, 0)]);
+
+        assert_eq!(wire1.get_min_intersection_manhattan_distance(&wire2), 6);
+
+        let path = PathBuf::from("./assets/configuration1.txt");
+        let mut result = load_from_file(path).unwrap();
+        let wire1 = result.pop().unwrap();
+        let wire2 = result.pop().unwrap();
+
+        assert_eq!(wire1.get_min_intersection_manhattan_distance(&wire2), 6);
+
+        let path = PathBuf::from("./assets/configuration2.txt");
+        let mut result = load_from_file(path).unwrap();
+        let wire1 = result.pop().unwrap();
+        let wire2 = result.pop().unwrap();
+
+        assert_eq!(wire1.get_min_intersection_manhattan_distance(&wire2), 159);
+
+        let path = PathBuf::from("./assets/configuration3.txt");
+        let mut result = load_from_file(path).unwrap();
+        let wire1 = result.pop().unwrap();
+        let wire2 = result.pop().unwrap();
+
+        assert_eq!(wire1.get_min_intersection_manhattan_distance(&wire2), 135);
     }
 }
