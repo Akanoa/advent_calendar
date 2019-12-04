@@ -246,6 +246,15 @@ pub fn part_1() -> u32{
     wire1.get_min_intersection_manhattan_distance(&wire2)
 }
 
+pub fn part_2() -> Option<u32>{
+    let path = PathBuf::from("./assets/configuration_prod.txt");
+    let mut result = load_from_file(path).unwrap();
+    let wire1 = result.pop().unwrap();
+    let wire2 = result.pop().unwrap();
+
+    wire1.get_min_steps(&wire2)
+}
+
 #[cfg(test)]
 mod tests {
 
