@@ -3,6 +3,36 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 
+#[macro_use]
+mod macros {
+    macro_rules! points_from_command {
+        ( $( ($x:expr, $y:expr)), *) => {
+            {
+                let mut temp_vec : Vec<(i32, i32)> =  vec![(0, 0)];
+                let mut previous_pos = (0, 0);
+                $(
+                    let (prev_x, prev_y) = previous_pos;
+                    previous_pos = (prev_x + $x, prev_y + $y);
+                    temp_vec.push(previous_pos);
+                )*
+                temp_vec
+            }
+        };
+        ($vec:expr) => {
+            {
+                let mut temp_vec : Vec<(i32, i32)> =  vec![(0, 0)];
+                let mut previous_pos = (0, 0);
+                for (x, y) in $vec {
+                    let (prev_x, prev_y) = previous_pos;
+                    previous_pos = (prev_x + x, prev_y + y);
+                    temp_vec.push(previous_pos);
+                }
+            temp_vec
+            }
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug)]
 struct Wire {
     path: Vec<(i32, i32)>
@@ -59,8 +89,9 @@ impl Wire {
         }
     }
 
-    fn add_to_path(&mut self, command : (i32, i32)) {
-        self.path.push(command)
+    fn get_points(&self) -> Vec<(i32, i32)> {
+        let path = self.path.clone();
+        points_from_command![path]
     }
 }
 
@@ -90,6 +121,7 @@ fn load_from_file(path: PathBuf) -> Result<Vec<Wire>, Box<dyn Error>>{
     Ok(wires)
 }
 
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -116,5 +148,19 @@ mod tests {
     #[test]
     fn test_line_to_command_list() {
         assert_eq!(vec!["R8","U5","L5","D3"], Command::line_to_command_list("R8,U5,L5,D3".to_string()))
+    }
+
+    #[test]
+    fn test_path_to_point() {
+
+        // test the macro
+        let points = points_from_command![(1, 0), (0, 1)];
+        assert_eq!(vec![(0, 0), (1, 0), (1, 1)], points);
+
+        let points2 = points_from_command![vec![(1, 0), (0, 1)]];
+        assert_eq!(vec![(0, 0), (1, 0), (1, 1)], points2);
+
+        let points3 = Wire::new(vec![(1, 0), (0, 1)]).get_points();
+        assert_eq!(vec![(0, 0), (1, 0), (1, 1)], points3);
     }
 }
