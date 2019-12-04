@@ -63,7 +63,23 @@ ___
 - Then we need to find intersection between these two path
 - Finally we need to implement a function that calculate the Manhattan distance from Origin (0,0).
 
-### What i've learned ?
+### What I've learned ?
 
 - How to create a macro.
 - How to use an HashSet to efficiently intersect two sets of the same data.
+
+## Part 2
+
+- wire 1 : `R8,U5,L5,D3`
+- wire 2 : `U7,R6,D4,L4`
+- steps : `30`
+
+___
+- wire 1 : `R75,D30,R83,U83,L12,D49,R71,U7,L72`
+- wire 2 : `U62,R66,U55,R34,D71,R55,D58,R83`
+- steps : `610`
+
+___
+- wire 1 : `R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51`
+- wire 2 : `U98,R91,D20,R16,D67,R40,U7,R15,U6,R7`
+- steps : `410`

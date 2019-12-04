@@ -78,10 +78,11 @@ mod macros {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug)]
 struct Wire {
     path: Vec<(i32, i32)>
 }
+
 
 struct Command;
 
@@ -162,6 +163,51 @@ impl Wire {
             }
         }
         min as u32
+    }
+
+    fn get_steps_from_command(&self, intersection: (i32, i32)) -> u32 {
+        match self.get_points()
+            .into_iter()
+            .position(|point| point == intersection) {
+                Some(pos) => (pos + 1) as u32,
+                None => 0
+            }
+
+    }
+
+    fn get_min_steps(&self, other: & Wire) -> Option<u32> {
+        let wires = vec![self, other];
+        let intersections = self.intersect(&other);
+
+        let mut steps = vec![];
+
+        for intersection in intersections {
+            let temp_steps = wires.clone().into_iter()
+                .map(|wire| wire.get_steps_from_command(intersection))
+                .collect::<Vec<u32>>();
+            steps.push(temp_steps);
+        }
+
+        let delays : Vec<u32> = steps.into_iter()
+            .map(|intersection_steps_by_wires| {
+                intersection_steps_by_wires.into_iter().sum()
+            })
+            .collect();
+
+        match delays.len() != 0 {
+            true => {
+
+                let mut min = delays[0];
+                for delay in delays.into_iter().skip(1) {
+                    if delay < min {
+                        min = delay
+                    }
+                }
+
+                Some(min)
+            },
+            false => None
+        }
     }
 }
 
@@ -283,5 +329,48 @@ mod tests {
         let wire2 = result.pop().unwrap();
 
         assert_eq!(wire1.get_min_intersection_manhattan_distance(&wire2), 135);
+    }
+
+    #[test]
+    fn test_get_steps() {
+        let wire = Wire::new(vec![(2, 0), (0, 4)]);
+        let steps = wire.get_steps_from_command((2,2));
+        assert_eq!(4, steps);
+
+        let wire = Wire::new(vec![(2, 0), (0, 4)]);
+        let steps = wire.get_steps_from_command((2,2));
+        assert_eq!(steps, 4);
+
+        let wire = Wire::new(vec![(8, 0), (0, 5), (-5, 0), (0, -3)]);
+        let steps = wire.get_steps_from_command((6,5));
+        assert_eq!(steps, 15);
+        let steps = wire.get_steps_from_command((3,3));
+        assert_eq!(steps, 20);
+
+    }
+
+    #[test]
+    fn test_get_min_steps() {
+
+        let path = PathBuf::from("./assets/configuration1.txt");
+        let mut result = load_from_file(path).unwrap();
+        let wire1 = result.pop().unwrap();
+        let wire2 = result.pop().unwrap();
+
+        assert_eq!(wire1.get_min_steps(&wire2), Some(30));
+
+        let path = PathBuf::from("./assets/configuration2.txt");
+        let mut result = load_from_file(path).unwrap();
+        let wire1 = result.pop().unwrap();
+        let wire2 = result.pop().unwrap();
+
+        assert_eq!(wire1.get_min_steps(&wire2), Some(610));
+
+        let path = PathBuf::from("./assets/configuration3.txt");
+        let mut result = load_from_file(path).unwrap();
+        let wire1 = result.pop().unwrap();
+        let wire2 = result.pop().unwrap();
+
+        assert_eq!(wire1.get_min_steps(&wire2), Some(410));
     }
 }
