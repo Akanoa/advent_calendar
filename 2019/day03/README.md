@@ -70,6 +70,14 @@ ___
 
 ## Part 2
 
+### Problem
+
+We want to know which intersection has the shorter number of steps from the Origin when we sum the steps following of both wires.
+
+![](./wires2.png)
+
+Here are the bench suites:
+
 - wire 1 : `R8,U5,L5,D3`
 - wire 2 : `U7,R6,D4,L4`
 - steps : `30`
@@ -83,3 +91,23 @@ ___
 - wire 1 : `R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51`
 - wire 2 : `U98,R91,D20,R16,D67,R40,U7,R15,U6,R7`
 - steps : `410`
+
+### Resolution
+
+- We already know the intersections point between wires. 
+- We also know which points are on each wires
+
+So, for each intersection, we just need to follow the path until we reach the the intersection, count the steps needed to reach it. 
+
+Finally we take the min steps value.
+
+## Conclusion
+
+Was very fun, the puzzle is complex but not impossible. I learned a lot about macros :)
+
+## Puzzle mark
+Language skills: ⭐⭐⭐⭐☆
+
+Puzzle: ⭐⭐⭐⭐⭐
+
+Background story : ⭐⭐⭐⭐☆ 
