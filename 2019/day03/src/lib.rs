@@ -224,11 +224,11 @@ mod tests {
     fn test_path_to_point() {
 
         // test the macro
-        let points = points_from_command![(1, 0), (0, 2)];
-        assert_eq!(points, vec![(1, 0), (1, 1), (1, 2)]);
+        let points = points_from_command![(1, 0), (0, -2)];
+        assert_eq!(points, vec![(1, 0), (1, -1), (1, -2)]);
 
-        let points2 = points_from_command![vec![(1, 0), (0, 2)]];
-        assert_eq!(points2, vec![(1, 0), (1, 1), (1, 2)]);
+        let points2 = points_from_command![vec![(1, 0), (0, -2)]];
+        assert_eq!(points2, vec![(1, 0), (1, -1), (1, -2)]);
 
         let points3 = Wire::new(vec![(1, 0), (0, 1)]).get_points();
         assert_eq!(vec![(1, 0), (1, 1)], points3);
