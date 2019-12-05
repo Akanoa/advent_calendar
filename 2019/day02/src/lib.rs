@@ -2,32 +2,7 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 use std::error::Error;
-
-#[derive(PartialEq)]
-enum OpCode {
-    ADD,
-    MULTIPLY,
-    STOP
-}
-
-impl From<u32> for OpCode {
-    fn from(x: u32) -> OpCode {
-        match x {
-            1 => OpCode::ADD,
-            2 => OpCode::MULTIPLY,
-            99 => OpCode::STOP,
-            _ => panic!("Unknown opcode {}", x)
-        }
-    }
-}
-
-
-enum Command {
-    OpCode = 0,
-    OperandAddress1,
-    OperandAddress2,
-    ResultAddress,
-}
+use common::computer;
 
 ///
 /// Loads program
@@ -52,37 +27,6 @@ fn read_program_file(path: PathBuf) -> Result<Vec<u32>, Box<dyn Error>> {
 
 
     Ok(result)
-}
-
-fn computer(mut memory :Vec<u32>) -> Vec<u32> {
-
-    let mut instruction_cursor: usize = 0;
-    loop {
-        let opcode =  OpCode::from(memory[instruction_cursor + Command::OpCode as usize]);
-
-        if opcode == OpCode::STOP {
-            break;
-        };
-
-        let operand_address_1 =  memory[instruction_cursor + Command::OperandAddress1 as usize] as usize;
-        let operand_address_2 =  memory[instruction_cursor + Command::OperandAddress2 as usize] as usize;
-
-        let operand_1 = memory[operand_address_1];
-        let operand_2 = memory[operand_address_2];
-
-        let result = match opcode {
-            OpCode::ADD => operand_1 + operand_2,
-            OpCode::MULTIPLY => operand_1 * operand_2,
-            _ => panic!("Unknown opcode")
-        };
-
-        let result_address =  memory[instruction_cursor + Command::ResultAddress as usize] as usize;
-        memory[result_address] = result;
-
-        instruction_cursor += 4;
-    }
-
-    memory
 }
 
 pub fn part_1(input_1: u32, input_2: u32) -> Vec<u32> {
@@ -116,8 +60,9 @@ pub fn part_2(result: u32) -> Option<(u32, u32)> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{computer, read_program_file};
+    use crate::{read_program_file};
     use std::path::PathBuf;
+    use common::computer;
 
     #[test]
     fn test_computer() {
