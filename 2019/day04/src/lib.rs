@@ -161,17 +161,27 @@ mod tests {
 
     #[test]
     fn test_double_rule() {
-        assert_eq!(true, compliant_to_double_rule("111111".to_string()));
-        assert_eq!(true, compliant_to_double_rule("122345".to_string()));
-        assert_eq!(false, compliant_to_double_rule("123789".to_string()));
+
+        assert_eq!(compliant_to_double_rule("1".to_string()), false);
+        assert_eq!(compliant_to_double_rule("11".to_string()), true);
+        assert_eq!(compliant_to_double_rule("111".to_string()), true);
+        assert_eq!(compliant_to_double_rule("122".to_string()), true);
+        assert_eq!(compliant_to_double_rule("1221".to_string()), true);
+        assert_eq!(compliant_to_double_rule("111111".to_string()), true);
+        assert_eq!(compliant_to_double_rule("122345".to_string()), true);
+        assert_eq!(compliant_to_double_rule("123789".to_string()), false);
     }
 
     #[test]
     fn test_increasing_rule() {
-        assert_eq!(true, compliant_to_decreasing_rule("111111".to_string()));
-        assert_eq!(true, compliant_to_decreasing_rule("111123".to_string()));
-        assert_eq!(true, compliant_to_decreasing_rule("135679".to_string()));
-        assert_eq!(false, compliant_to_decreasing_rule("223450".to_string()));
+        assert_eq!(compliant_to_decreasing_rule("11".to_string()), true);
+        assert_eq!(compliant_to_decreasing_rule("12".to_string()), true);
+        assert_eq!(compliant_to_decreasing_rule("21".to_string()), false);
+        assert_eq!(compliant_to_decreasing_rule("1231".to_string()), false);
+        assert_eq!(compliant_to_decreasing_rule("111111".to_string()), true);
+        assert_eq!(compliant_to_decreasing_rule("111123".to_string()), true);
+        assert_eq!(compliant_to_decreasing_rule("135679".to_string()), true);
+        assert_eq!(compliant_to_decreasing_rule("223450".to_string()), false);
     }
 
     #[test]
@@ -186,7 +196,7 @@ mod tests {
         assert_eq!(compliant_to_strict_group_rule("113334".to_string(), 2), true, "2 - compliant to rule there is a least one double, there two '1' at the beginning");
         assert_eq!(compliant_to_strict_group_rule("123334".to_string(), 2), false, "not compliant to strict double rule, there isn't a strict double digit");
         assert_eq!(compliant_to_strict_group_rule("112233".to_string(), 2), true, "compliant to the strict double rule, there is a double '2' in the middle of string");
-        assert_eq!(compliant_to_strict_group_rule("123444".to_string(), 2), false, "not compliant to strict double rule, there three '4' at the en ");
+        assert_eq!(compliant_to_strict_group_rule("123444".to_string(), 2), false, "not compliant to strict double rule, there three '4' at the end of string");
         assert_eq!(compliant_to_strict_group_rule("111122".to_string(), 2), true, "compliant to double rule, there is a strict double '2' a the end of string");
     }
 }
