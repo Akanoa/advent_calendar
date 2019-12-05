@@ -90,7 +90,7 @@ Example:
 
 ### Resolution
 
-The code is heavily commented [rule implementation ](./src/lib.rs) line 59
+The code is heavily commented [rule implementation ](./src/lib.rs#L59) line 59
 
 ### What I've learned
 
