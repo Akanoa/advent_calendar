@@ -103,6 +103,8 @@ I've been also fooled by the Iterator behavior that consume data each step.
 
 My tchat on Twitch was a really appreciated help ❤️
 
+## Puzzle mark
+
 Language skills: ⭐⭐⭐⭐☆
 
 Puzzle: ⭐⭐⭐☆☆
