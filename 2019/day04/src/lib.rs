@@ -1,5 +1,4 @@
-fn compliant_to_decreasing_rule(password: String) -> bool{
-
+fn compliant_to_decreasing_rule(password: String) -> bool {
     let mut chars = password.chars();
     let mut current = match chars.next() {
         Some(c) => {
@@ -7,7 +6,7 @@ fn compliant_to_decreasing_rule(password: String) -> bool{
                 Some(d) => d,
                 None => panic!("Unable to parse digit")
             }
-        },
+        }
         None => panic!("Empty password")
     };
 
@@ -22,18 +21,16 @@ fn compliant_to_decreasing_rule(password: String) -> bool{
         };
 
         if next < current {
-            return false
+            return false;
         }
 
         current = next;
-
     }
 
     true
 }
 
 fn compliant_to_double_rule(password: String) -> bool {
-
     let mut chars = password.chars();
     let mut current = match chars.next() {
         Some(c) => c,
@@ -48,11 +45,10 @@ fn compliant_to_double_rule(password: String) -> bool {
         };
 
         if next == current {
-            return true
+            return true;
         }
 
         current = next;
-
     }
 
     false
@@ -126,7 +122,7 @@ fn compliant_to_strict_group_rule(password: String, number_of_element_by_group: 
 }
 
 pub fn part1() -> u32 {
-    let mut count : u32 = 0;
+    let mut count: u32 = 0;
     for password in 264793..803935 {
         let password_string = password.to_string();
         if !compliant_to_decreasing_rule(password_string.clone()) {
@@ -135,14 +131,14 @@ pub fn part1() -> u32 {
         if !compliant_to_double_rule(password_string.clone()) {
             continue;
         }
-        count+=1;
+        count += 1;
     }
 
     count
 }
 
 pub fn part2() -> u32 {
-    let mut count : u32 = 0;
+    let mut count: u32 = 0;
     for password in 264793..803935 {
         let password_string = password.to_string();
         if !compliant_to_decreasing_rule(password_string.clone()) {
@@ -154,7 +150,7 @@ pub fn part2() -> u32 {
         if !compliant_to_strict_group_rule(password_string.clone(), 2) {
             continue;
         }
-        count+=1;
+        count += 1;
     }
     count
 }
