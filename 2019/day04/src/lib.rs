@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 fn compliant_to_decreasing_rule(password: String) -> bool {
     let mut chars = password.chars();
     let mut current = match chars.next() {
@@ -122,37 +124,21 @@ fn compliant_to_strict_group_rule(password: String, number_of_element_by_group: 
 }
 
 pub fn part1() -> u32 {
-    let mut count: u32 = 0;
-    for password in 264793..803935 {
-        let password_string = password.to_string();
-        if !compliant_to_decreasing_rule(password_string.clone()) {
-            continue;
-        }
-        if !compliant_to_double_rule(password_string.clone()) {
-            continue;
-        }
-        count += 1;
-    }
 
-    count
+    Range { start: 264793, end: 803935 }
+        .map(|password| password.to_string())
+        .filter(|password|compliant_to_decreasing_rule(password.clone()))
+        .filter(|password| compliant_to_double_rule(password.clone()))
+        .count() as u32
 }
 
 pub fn part2() -> u32 {
-    let mut count: u32 = 0;
-    for password in 264793..803935 {
-        let password_string = password.to_string();
-        if !compliant_to_decreasing_rule(password_string.clone()) {
-            continue;
-        }
-        if !compliant_to_double_rule(password_string.clone()) {
-            continue;
-        }
-        if !compliant_to_strict_group_rule(password_string.clone(), 2) {
-            continue;
-        }
-        count += 1;
-    }
-    count
+
+    Range { start: 264793, end: 803935 }
+        .map(|password| password.to_string())
+        .filter(|password|compliant_to_decreasing_rule(password.clone()))
+        .filter(|password| compliant_to_strict_group_rule(password.clone(), 2))
+        .count() as u32
 }
 
 #[cfg(test)]
