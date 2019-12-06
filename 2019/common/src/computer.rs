@@ -2,6 +2,44 @@ use std::path::PathBuf;
 use std::error::Error;
 use std::io::{BufReader, BufRead};
 use std::fs::File;
+use std::fmt::{Display, Formatter};
+use std::ops::Deref;
+
+
+#[macro_use]
+mod macros {
+    macro_rules! get_operand {
+        ($memory:ident, $memory_address:expr, $instruction_cursor:ident, $parameters_mode:expr, $text_error:expr) => {
+            {
+                let operand = match $parameters_mode {
+                Mode::Immediate => {
+                    match $memory.get($instruction_cursor + $memory_address as usize) {
+                        Some(x) => x,
+                        None => panic!("{} (get immediate value): This memory address doesn't exist", $text_error)
+                    }
+                },
+                Mode::Positional => {
+                    let operand_address= match $memory.get($instruction_cursor + $memory_address as usize) {
+                        Some(x) => x,
+                        None => panic!("{} (get memory address): This memory address doesn't exist", $text_error)
+                    };
+
+                    match $memory.get(operand_address.parse::<usize>().unwrap()) {
+                        Some(x) => x,
+                        None => panic!("{} (get value from memory address): This memory address doesn't exist", $text_error)
+                    }
+                }
+            };
+
+                match operand.parse::<i32>() {
+                    Ok(x) => x,
+                    Err(_) => panic!("{}: Unable to parse {}", $text_error, operand)
+                }
+            }
+
+        };
+    }
+}
 
 #[derive(PartialEq, Debug)]
 enum OpCode {
@@ -140,11 +178,16 @@ pub fn read_program_file(path: PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(result)
 }
 
-pub fn computer(mut memory :Vec<u32>) -> Vec<u32> {
+pub fn computer(mut memory :Vec<String>, input: Option<i32>) -> (Vec<String>, Vec<String>) {
 
     let mut instruction_cursor: usize = 0;
+    let mut output_buffer = vec![];
     loop {
-        let opcode =  OpCode::from(memory[instruction_cursor + Command::OpCode as usize]);
+        let opcode_string =  match memory.get(instruction_cursor + Command::OpCode as usize) {
+            Some(x) => x,
+            None => panic!("OPCODE: This memory address doesn't exist")
+        };
+        let (parameters_mode, opcode) = OpCode::get_opcode_and_modes_from_str(opcode_string.parse().unwrap());
 
         if opcode == OpCode::STOP {
             break;
@@ -154,42 +197,49 @@ pub fn computer(mut memory :Vec<u32>) -> Vec<u32> {
         match opcode {
             OpCode::ADD | OpCode::MULTIPLY => {
 
-                let operand_address_1 =  memory[instruction_cursor + Command::OperandAddress1 as usize] as usize;
-                let operand_address_2 =  memory[instruction_cursor + Command::OperandAddress2 as usize] as usize;
+                let operand_1 : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, parameters_mode.first_operand, "OPERAND1");
+                let operand_2 : i32 = get_operand!(memory, Command::OperandAddress2, instruction_cursor, parameters_mode.second_operand, "OPERAND2");
 
-                let operand_1 = memory[operand_address_1];
-                let operand_2 = memory[operand_address_2];
+                let result = match opcode {
+                    OpCode::ADD => operand_1 + operand_2,
+                    OpCode::MULTIPLY => operand_1 * operand_2,
+                    _ => panic!("Unknown opcode")
+                };
+
+                let store_address = get_operand!(memory, Command::ResultAddress, instruction_cursor, Mode::Immediate, "RESULT");
+                memory[store_address as usize] = result.to_string();
 
             },
             OpCode::OUTPUT | OpCode::STORE => {
+                let address : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, Mode::Immediate, "ADRRESS");
+
+                match opcode {
+                    OpCode::STORE => {
+                        let value = match input {
+                            Some(x) => {
+                                memory[address as usize] = x.to_string();
+                            },
+                            None => panic!("Unable get value to store")
+                        };
+                    },
+                    OpCode::OUTPUT => {
+                        let value = match memory.get(address as usize) {
+                            Some(x) => x,
+                            None => panic!("OPCODE: This memory address doesn't exist")
+                        };
+                        output_buffer.push(format!("Content of adress #{} is {}", address, value));
+                    },
+                    _ => panic!("Unknown opcode")
+                }
 
             },
             _ => panic!("Unknown opcode")
         }
 
-
-
-//        let operand_address_1 =  memory[instruction_cursor + Command::OperandAddress1 as usize] as usize;
-//        let operand_address_2 =  memory[instruction_cursor + Command::OperandAddress2 as usize] as usize;
-//
-//        let operand_1 = memory[operand_address_1];
-//        let operand_2 = memory[operand_address_2];
-//
-//        let mut result  = None ;
-//        match opcode {
-//            OpCode::ADD => result = Some(operand_1 + operand_2),
-//            OpCode::MULTIPLY => result = Some(operand_1 * operand_2),
-//            OpCode::OUTPUT => println!("The content of address #{}"),
-//            _ => panic!("Unknown opcode")
-//        };
-//
-//        let result_address =  memory[instruction_cursor + Command::ResultAddress as usize] as usize;
-//        memory[result_address] = result;
-//
-//        instruction_cursor += OpCode::get_increment(opcode);
+        instruction_cursor += OpCode::get_increment(opcode);
     }
 
-    memory
+    (memory, output_buffer)
 }
 
 
@@ -197,6 +247,15 @@ pub fn computer(mut memory :Vec<u32>) -> Vec<u32> {
 mod tests {
     use super::{OpCode, computer, Parameter, Mode, read_program_file};
     use std::path::PathBuf;
+
+    #[macro_use]
+    mod macros {
+        macro_rules! vec_string_to_vec_str {
+            ($vec:expr) => {
+                $vec.into_iter().map(|s| s.to_string()).collect()
+            };
+        }
+    }
 
     #[test]
     fn test_opcode_to_increment() {
@@ -227,10 +286,21 @@ mod tests {
 
     #[test]
     fn test_computer() {
-        assert_eq!(computer(vec![1, 0, 0, 0, 99]), vec![2, 0, 0, 0, 99], "Must be able to add two numbers");
-        assert_eq!(computer(vec![2, 3, 0, 3, 99]), vec![2, 3, 0, 6, 99], "Must be able to multiply two numbers");
-        assert_eq!(computer(vec![2, 4, 4, 5, 99, 0]), vec![2, 4, 4, 5, 99, 9801], "Must be able to multiply two numbers and store the result");
-        assert_eq!(computer(vec![1,1,1,4,99,5,6,0,99]), vec![30,1,1,4,2,5,6,0,99], "Must be able to handle complex program");
+
+        let empty: Vec<String> = Vec::new();
+
+        assert_eq!(computer( vec_string_to_vec_str!(vec!["1", "0", "0", "0", "99"]), None),
+                   (vec_string_to_vec_str!(vec!["2", "0", "0", "0", "99"]), empty.clone()), "Must be able to add two numbers");
+        assert_eq!(computer(vec_string_to_vec_str!(vec!["2", "3", "0", "3", "99"]), None),
+                   (vec_string_to_vec_str!(vec!["2", "3", "0", "6", "99"]), empty.clone()), "Must be able to multiply two numbers");
+        assert_eq!(computer(vec_string_to_vec_str!(vec!["2", "4", "4", "5", "99", "0"]), None),
+                   (vec_string_to_vec_str!(vec!["2", "4", "4", "5", "99", "9801"]), empty.clone()), "Must be able to multiply two numbers and store the result");
+        assert_eq!(computer(vec_string_to_vec_str!(vec!["1","1","1","4","99","5","6","0","99"]), None),
+                   (vec_string_to_vec_str!(vec!["30","1","1","4","2","5","6","0","99"]), empty.clone()), "Must be able to handle complex program");
+        assert_eq!(computer(vec_string_to_vec_str!(vec!["1101","100","-1","4","0"]), None),
+                   (vec_string_to_vec_str!(vec!["1101","100","-1","4","99"]), empty.clone()), "Can handle operation immediate value");
+        assert_eq!(computer(vec_string_to_vec_str!(vec!["3","0","4","0","99"]), Some(-42)),
+                   (vec_string_to_vec_str!(vec!["-42","0","4","0","99"]), vec_string_to_vec_str!(vec!["Content of adress #0 is -42"])), "Able to write in output buffer");
     }
 
     #[test]
@@ -245,13 +315,17 @@ mod tests {
     fn test_get_opcode_and_modes_from_str() {
         assert_eq!(OpCode::get_opcode_and_modes_from_str("001".to_string()),
                    (Parameter { first_operand: Mode::Positional, second_operand: Mode::Positional }, OpCode::ADD));
+        assert_eq!(OpCode::get_opcode_and_modes_from_str("1002".to_string()),
+                   (Parameter { first_operand: Mode::Positional, second_operand: Mode::Immediate }, OpCode::MULTIPLY));
+        assert_eq!(OpCode::get_opcode_and_modes_from_str("99".to_string()),
+                   (Parameter { first_operand: Mode::Positional, second_operand: Mode::Positional }, OpCode::STOP));
     }
 
     #[test]
     fn test_read_program_file() {
         let path = PathBuf::from("./assets/dev_program.txt");
         let results = read_program_file(path).unwrap();
-        assert_eq!(results, vec!["0001","0","0","0","99"], "Must read the right value from file")
+        assert_eq!(results, vec!["1","0","0","0","99"], "Must read the right value from file")
     }
 }
 
