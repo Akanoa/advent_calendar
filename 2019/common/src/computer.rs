@@ -2,8 +2,6 @@ use std::path::PathBuf;
 use std::error::Error;
 use std::io::{BufReader, BufRead};
 use std::fs::File;
-use std::fmt::{Display, Formatter};
-use std::ops::Deref;
 
 
 #[macro_use]
@@ -74,7 +72,7 @@ impl OpCode {
     fn get_opcode_and_modes_from_str(string: String) -> (Parameter, OpCode) {
 
         // sanitize input
-        let mut input = format!("{:0>4}", string)
+        let input = format!("{:0>4}", string)
             .chars()
             .rev()
             .take(4)
@@ -215,7 +213,7 @@ pub fn computer(mut memory :Vec<String>, input: Option<i32>) -> (Vec<String>, Ve
 
                 match opcode {
                     OpCode::STORE => {
-                        let value = match input {
+                        match input {
                             Some(x) => {
                                 memory[address as usize] = x.to_string();
                             },
