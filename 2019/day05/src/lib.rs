@@ -8,3 +8,11 @@ pub fn part_1() -> Vec<String> {
     let (_, outputs) = computer(memory, Some(1));
     outputs
 }
+
+pub fn part_2() -> Vec<String> {
+    let path = PathBuf::from("./assets/program.txt");
+    let memory = read_program_file(path).unwrap();
+
+    let (_, outputs) = computer(memory, Some(5));
+    outputs
+}

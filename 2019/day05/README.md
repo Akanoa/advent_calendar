@@ -32,6 +32,52 @@ If `B` is `1` then the second operand is the immediate value instead of an addre
 
 So we should be able to read program like this `101,40,2,5,99,0` will be give us `101,40,2,5,99,42`, because the take the `40` the add to the content of the address `2` which value is `2` and store it to address `5`.
 
+The instruction cursor no more increment systematically by `4` positions. Each opcode has it's own way
+to deal with is parameters. For example `ADD` takes `3` parameters, the increment will be `4`, but `STORE`
+only have `1` parameter thus the increment will be `2`.
+
+### Resolution
+
+Firstly first, I take some time to refactor my project, because the computer is used by both day02 and day05 project, I decide to extract it into a separate library project called `common`.
+
+Because the opcode part have a bit changed, I need to refactor it to take in account the new parameter mode part. 
+
+I also decide to define memory as an array of signed int instead of a unsigned integer list, to deal with program like:
+
+`1101,100,-1,4,0` which stores `100 - 1` into address `4`
+
+After this I append to my computer the new opcodes operation and implement their behavior.
+
+As the increment can vary I dress a mapping between opcode and the number of parameter taken:
+- `ADD` : 3
+- `MULTIPLY` : 3
+- `JUMP IF NON ZERO` : 3
+- `JUMP IF ZERO` : 3
+- `LESS THAN` : 2
+- `EQUALS` : 2
+- `STORE` : 1
+- `OUTPUT` : 1
+- `STOP` : 0
+
+Because of the `STORE` and `OUTPUT` opcodes, I nedd to change the computer function signature, to add
+in input a parameter to what'll be stored, I decide to use a `Option<i32>` to model it. I also need a output buffer.
+Therefore the output is now a tuple `(Vec<i32>, Vec<String>)`, the first member is the state of the memory at program halt
+and the second represents the buffer stack the program.
+
 ## Part 2
 
 ### Problem
+
+In this part we'll implement 4 more opcodes:
+
+- `5` which jumps to the second parameter address if the first parameter is `non-zero`
+- `6` which jumps to the second parameter address if the first parameter is `zero`
+- `7` which stores `1` in the memory address given by third parameter if the first parameter is less
+than the second, stores `0` otherwise.
+- `8` which stores `1` in the memory address given by third parameter if the first parameter is equals the second, stores `0` otherwise.
+
+### Resolution
+
+![](./jump_program_positional.png)
+
+![](./jump_program.png)
