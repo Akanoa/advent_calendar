@@ -78,6 +78,28 @@ than the second, stores `0` otherwise.
 
 ### Resolution
 
+To solve this part we need to implement both the conditional jumps and logical operation of equality.
+
+Below some program and their associated pseudo code. 
+
+this program check whether input is a `1`, outputs `1` else `0`, using positional mode
 ![](./jump_program_positional.png)
 
+same program but using immediate value
 ![](./jump_program.png)
+
+
+### What I've learned
+
+How to split a rust projet into multiple library projects and inject them as dependency.
+
+## Conclusion
+I loved it. I create an ALU in Rust ❤️
+
+## Puzzle mark
+
+Language skills: ⭐⭐⭐⭐☆
+
+Puzzle: ⭐⭐⭐⭐⭐
+
+Background story : ⭐⭐⭐⭐☆ 
