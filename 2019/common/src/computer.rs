@@ -209,7 +209,7 @@ pub fn computer(mut memory :Vec<i32>, input: Option<i32>) -> (Vec<i32>, Vec<Stri
         };
 
 
-        match opcode.clone() {
+        match opcode {
             OpCode::Add | OpCode::Multiply => {
 
                 let operand_1 : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, parameters_mode.first_operand, "OPERAND1");
@@ -230,7 +230,7 @@ pub fn computer(mut memory :Vec<i32>, input: Option<i32>) -> (Vec<i32>, Vec<Stri
             },
             OpCode::Output | OpCode::Store => {
                 let address : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, Mode::Immediate, "ADRRESS");
-                increment = OpCode::get_increment(opcode.clone());
+                increment = OpCode::get_increment(opcode);
                 match opcode {
                     OpCode::Store => {
                         match input {
