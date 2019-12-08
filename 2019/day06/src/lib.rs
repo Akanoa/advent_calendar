@@ -3,7 +3,8 @@ use std::error::Error;
 use std::io::{BufReader, BufRead};
 use std::fs::File;
 use indextree::{Arena, NodeId};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use common::hashed_fill;
 
 #[macro_use]
 mod macros {
@@ -48,6 +49,34 @@ pub fn part_1() -> u32 {
     let configuration = load_from_file(path).unwrap();
     let (tree, map) = build_tree(configuration);
     get_sum_tree_step((&tree, &map), "COM".to_string(), 0, 0).0
+}
+
+pub fn part_2() -> u32 {
+    let path = PathBuf::from("./assets/prod.txt");
+    let configuration = load_from_file(path).unwrap();
+    let (mut tree,mut map) = build_tree(configuration);
+    get_minimal_steps_between_nodes((&mut tree, &mut map), "YOU".to_string(), "SAN".to_string())
+}
+
+
+fn get_minimal_steps_between_nodes((tree, map) : (&mut Arena<String>, &mut HashMap<String, NodeId>), start: String, end: String) -> u32 {
+    let start_ancestor = hashed_fill!(String, get_all_acestors((tree, map), start));
+    let end_ancestor = hashed_fill!(String, get_all_acestors((tree, map), end));
+
+    let a = start_ancestor.difference(&end_ancestor).collect::<Vec<&String>>().len();
+    let b = end_ancestor.difference(&start_ancestor).collect::<Vec<&String>>().len();
+
+    (a + b) as u32
+}
+
+fn get_all_acestors((tree, map) : (&mut Arena<String>, &mut HashMap<String, NodeId>), start: String) -> Vec<String> {
+
+    let child : NodeId = get_node!(start.clone(), map, tree);
+    let a = child.ancestors(&tree).into_iter()
+        .map(|ancestor| tree.get(ancestor).unwrap().get().to_owned())
+        .skip(1)
+        .collect();
+    a
 }
 
 fn get_sum_tree_step((tree, map) : (&Arena<String>, &HashMap<String, NodeId>), reference_name: String, sum: u32, depth: i32) -> (u32,Arena<String>, HashMap<String, NodeId>) {
@@ -114,7 +143,7 @@ fn parse_identifiers(line: String) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse_identifiers, load_from_file, build_tree, get_sum_tree_step};
+    use crate::{parse_identifiers, load_from_file, build_tree, get_sum_tree_step, get_all_acestors, get_minimal_steps_between_nodes};
     use std::path::PathBuf;
 
     #[macro_use]
@@ -133,6 +162,13 @@ mod tests {
                     ($left.to_string(), $right.to_string())
                 }
             };
+            ($vec:expr) => {
+                {
+                    $vec.into_iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>()
+                }
+            }
         }
     }
 
@@ -218,5 +254,38 @@ mod tests {
 
         let (tree,map) = build_tree(configuration);
         assert_eq!(get_sum_tree_step((&tree, &map), "COM".to_string(), 0, 0).0, 42);
+    }
+
+    #[test]
+    fn test_get_ancestors() {
+        let configuration = vec_tuple_str_to_vec_tuple_string!(vec![
+            ("ROOT", "A"),
+            ("A", "B"),
+            ("A", "C"),
+            ("C", "D"),
+            ("C", "E"),
+        ]);
+
+        let (mut tree,mut map) = build_tree(configuration.clone());
+        assert_eq!(get_all_acestors((&mut tree, &mut map), "D".to_string()), to_str!(vec!["C", "A", "ROOT"]));
+
+        let (mut tree,mut map) = build_tree(configuration.clone());
+        assert_eq!(get_all_acestors((&mut tree, &mut map), "B".to_string()), to_str!(vec!["A", "ROOT"]));
+
+        let path = PathBuf::from("./assets/dev_program2.txt");
+        let configuration = load_from_file(path).unwrap();
+        let (mut tree,mut map) = build_tree(configuration);
+        assert_eq!(get_all_acestors((&mut tree, &mut map), "YOU".to_string()), to_str!(vec![
+            "K", "J", "E", "D", "C", "B", "COM"]));
+        assert_eq!(get_all_acestors((&mut tree, &mut map), "SAN".to_string()), to_str!(vec![
+            "I", "D", "C", "B", "COM"]));
+    }
+
+    #[test]
+    fn test_get_minimal_steps_between_nodes() {
+        let path = PathBuf::from("./assets/dev_program2.txt");
+        let configuration = load_from_file(path).unwrap();
+        let (mut tree,mut map) = build_tree(configuration);
+        assert_eq!(get_minimal_steps_between_nodes((&mut tree, &mut map), "YOU".to_string(), "SAN".to_string()), 4)
     }
 }

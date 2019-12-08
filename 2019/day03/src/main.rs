@@ -1,5 +1,6 @@
 use day03;
 use day03::{part_1, part_2};
+extern crate common;
 
 fn main() {
     let result1 = part_1();

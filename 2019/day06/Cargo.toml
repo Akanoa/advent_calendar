@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 indextree = "4.0.0"
+common = { path = "../common", version = "0.1.0" }
