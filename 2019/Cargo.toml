@@ -1,0 +1,18 @@
+[package]
+name = "advent_of_code_2019"
+version = "0.1.0"
+authors = ["Yannick Guern <dev@guern.eu>"]
+edition = "2018"
+
+[workspace]
+members = [
+    "common",
+    "day01",
+    "day02",
+    "day03",
+    "day04",
+    "day05",
+    "day06",
+]
+
+[lib]
