@@ -23,6 +23,51 @@ mod macros {
 
         };
     }
+
+    macro_rules! get_node_children_names {
+        ($parent_name:expr, $tree:ident, $map:ident) => {
+            {
+                let mut children_names = vec![];
+                match $map.get($parent_name) {
+                    Some(node_id) => {
+                        for child_node_id in node_id.children(&$tree) {
+                            let child_name = $tree.get(child_node_id).unwrap().get();
+                            children_names.push(child_name);
+                        }
+                    },
+                    None => panic!("This node name doesn't into tree")
+                };
+                children_names
+            }
+        };
+    }
+}
+
+pub fn part_1() -> u32 {
+    let path = PathBuf::from("./assets/prod.txt");
+    let configuration = load_from_file(path).unwrap();
+    let (tree, map) = build_tree(configuration);
+    get_sum_tree_step((&tree, &map), "COM".to_string(), 0, 0).0
+}
+
+fn get_sum_tree_step((tree, map) : (&Arena<String>, &HashMap<String, NodeId>), reference_name: String, sum: u32, depth: i32) -> (u32,Arena<String>, HashMap<String, NodeId>) {
+
+    let children : Vec<&String> = get_node_children_names!(&reference_name, tree, map);
+
+    let new_depth = depth + 1;
+    let mut new_sum = 0;
+
+    let mut child_count = 0;
+    if children.len() != 0 {
+        for child in children {
+            child_count+=1;
+            new_sum += get_sum_tree_step((tree, map), child.to_owned(), sum, new_depth).0;
+        }
+        new_sum += child_count*new_depth as u32 + sum;
+
+    }
+
+    (new_sum, tree.to_owned(), map.to_owned())
 }
 
 fn build_tree(configuration:Vec<(String, String)>) -> (Arena<String>, HashMap<String, NodeId>){
@@ -69,9 +114,8 @@ fn parse_identifiers(line: String) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse_identifiers, load_from_file, build_tree};
+    use crate::{parse_identifiers, load_from_file, build_tree, get_sum_tree_step};
     use std::path::PathBuf;
-    use indextree::Node;
 
     #[macro_use]
     mod macros {
@@ -87,20 +131,6 @@ mod tests {
             ($left:expr, $right:expr) => {
                 {
                     ($left.to_string(), $right.to_string())
-                }
-            };
-        }
-
-        macro_rules! get_node_children_name {
-            ($parent_name:expr, $tree:ident, $map:ident) => {
-                {
-                    let node_id = $map.get($parent_name).unwrap().to_owned();
-                    let mut children_names = vec![];
-                    for child_node_id in node_id.children(&$tree) {
-                        let child_name = $tree.get(child_node_id).unwrap().get();
-                        children_names.push(child_name);
-                    }
-                    children_names
                 }
             };
         }
@@ -145,14 +175,48 @@ mod tests {
 
         let empty : Vec<&String> = Vec::new();
         let (tree, map) = build_tree(configuration);
-        let  children_names = get_node_children_name!("A", tree, map);
+
+
+        let  children_names = get_node_children_names!("A", tree, map);
         assert_eq!(vec!["D", "B", "E"], children_names);
-        let  children_names = get_node_children_name!("B", tree, map);
+        let  children_names = get_node_children_names!("B", tree, map);
         assert_eq!(vec!["C"], children_names);
-        let  children_names = get_node_children_name!("C", tree, map);
+        let  children_names = get_node_children_names!("C", tree, map);
         assert_eq!(empty, children_names);
-        let  children_names = get_node_children_name!("D", tree, map);
+        let  children_names = get_node_children_names!("D", tree, map);
         assert_eq!(empty, children_names);
 
+    }
+
+    #[test]
+    fn test_get_sum_tree_steps() {
+        let configuration = vec_tuple_str_to_vec_tuple_string!(vec![
+            ("ROOT", "A"),
+            ("A", "B"),
+            ("A", "C"),
+            ("C", "D"),
+            ("C", "E"),
+        ]);
+
+        let (tree,map) = build_tree(configuration);
+        assert_eq!(get_sum_tree_step((&tree, &map), "ROOT".to_string(), 0, 0).0, 11);
+
+
+        let configuration = vec_tuple_str_to_vec_tuple_string!(vec![
+            ("COM", "B"),
+            ("B", "C"),
+            ("C", "D"),
+            ("D", "E"),
+            ("E", "F"),
+            ("B", "G"),
+            ("G", "H"),
+            ("D", "I"),
+            ("E", "J"),
+            ("J", "K"),
+            ("K", "L"),
+        ]);
+
+        let (tree,map) = build_tree(configuration);
+        assert_eq!(get_sum_tree_step((&tree, &map), "COM".to_string(), 0, 0).0, 42);
     }
 }
