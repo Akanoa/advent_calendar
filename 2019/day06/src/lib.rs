@@ -2,6 +2,45 @@ use std::path::PathBuf;
 use std::error::Error;
 use std::io::{BufReader, BufRead};
 use std::fs::File;
+use indextree::{Arena, NodeId};
+use std::collections::HashMap;
+
+#[macro_use]
+mod macros {
+    macro_rules! get_node {
+        ($side:expr, $index_node_map:ident, $arena:ident) => {
+
+            match $index_node_map.get(&$side[..]) {
+                Some(&node_id) => {
+                    node_id
+                },
+                None => {
+                    let node_id = $arena.new_node($side.clone());
+                    $index_node_map.insert($side, node_id);
+                    node_id
+                }
+            }
+
+        };
+    }
+}
+
+fn build_tree(configuration:Vec<(String, String)>) -> (Arena<String>, HashMap<String, NodeId>){
+
+    let arena = &mut Arena::new();
+    let mut index_node_map : HashMap<String, NodeId> = HashMap::new();
+
+    for (parent, child) in configuration {
+
+        let parent_node : NodeId  = get_node!(parent.clone(), index_node_map, arena);
+        let child_node :NodeId = get_node!(child.clone(), index_node_map, arena);
+
+        parent_node.append(child_node, arena)
+
+    }
+
+    (arena.to_owned(), index_node_map)
+}
 
 fn load_from_file(path: PathBuf) -> Result<Vec<(String, String)>, Box<dyn Error>> {
     let file = File::open(&path)?;
@@ -30,8 +69,9 @@ fn parse_identifiers(line: String) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse_identifiers, load_from_file};
+    use crate::{parse_identifiers, load_from_file, build_tree};
     use std::path::PathBuf;
+    use indextree::Node;
 
     #[macro_use]
     mod macros {
@@ -47,6 +87,20 @@ mod tests {
             ($left:expr, $right:expr) => {
                 {
                     ($left.to_string(), $right.to_string())
+                }
+            };
+        }
+
+        macro_rules! get_node_children_name {
+            ($parent_name:expr, $tree:ident, $map:ident) => {
+                {
+                    let node_id = $map.get($parent_name).unwrap().to_owned();
+                    let mut children_names = vec![];
+                    for child_node_id in node_id.children(&$tree) {
+                        let child_name = $tree.get(child_node_id).unwrap().get();
+                        children_names.push(child_name);
+                    }
+                    children_names
                 }
             };
         }
@@ -78,5 +132,27 @@ mod tests {
             ("B", "C"),
             ("E", "G")
         ]), result);
+    }
+
+    #[test]
+    fn test_build_tree() {
+        let configuration = vec_tuple_str_to_vec_tuple_string!(vec![
+            ("B", "C"),
+            ("A", "D"),
+            ("A", "B"),
+            ("A", "E")
+        ]);
+
+        let empty : Vec<&String> = Vec::new();
+        let (tree, map) = build_tree(configuration);
+        let  children_names = get_node_children_name!("A", tree, map);
+        assert_eq!(vec!["D", "B", "E"], children_names);
+        let  children_names = get_node_children_name!("B", tree, map);
+        assert_eq!(vec!["C"], children_names);
+        let  children_names = get_node_children_name!("C", tree, map);
+        assert_eq!(empty, children_names);
+        let  children_names = get_node_children_name!("D", tree, map);
+        assert_eq!(empty, children_names);
+
     }
 }

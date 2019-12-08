@@ -3,4 +3,14 @@
 [[package]]
 name = "day06"
 version = "0.1.0"
+dependencies = [
+ "indextree 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
+[[package]]
+name = "indextree"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[metadata]
+"checksum indextree 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "df86f0c82859379c2e9068f42fb345d4c0fba1bb09fcc52454ec19131a2aa068"
