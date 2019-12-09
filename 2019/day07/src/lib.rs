@@ -52,7 +52,7 @@ impl AmplifierChain {
 
 
 fn get_optimized_amplifier_chain(program: Vec<i32>) -> i32 {
-    let permutions = get_all_combinations_settings(&[0,1,2,3,4,5]);
+    let permutions = get_all_combinations_settings(&[0,1,2,3,4]);
     let mut max = 0;
     let mut counter = 0;
     println!("Permutations number {}", permutions.len());
