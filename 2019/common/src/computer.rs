@@ -188,10 +188,11 @@ pub fn read_program_file(path: PathBuf) -> Result<Vec<i32>, Box<dyn Error>> {
     Ok(result)
 }
 
-pub fn computer(mut memory :Vec<i32>, input: Option<i32>) -> (Vec<i32>, Vec<String>) {
+pub fn computer(mut memory :Vec<i32>, input: &mut Option<Vec<i32>>) -> (Vec<i32>, Vec<i32>) {
 
     let mut instruction_cursor: usize = 0;
     let mut output_buffer = vec![];
+
 
     loop {
 
@@ -235,7 +236,12 @@ pub fn computer(mut memory :Vec<i32>, input: Option<i32>) -> (Vec<i32>, Vec<Stri
                     OpCode::Store => {
                         match input {
                             Some(x) => {
-                                memory[address as usize] = x;
+                                match x.pop() {
+                                    Some(data) => {
+                                        memory[address as usize] = data;
+                                    },
+                                    None => panic!("Unable to get value from input Vec")
+                                }
                             },
                             None => panic!("Unable get value to store")
                         };
@@ -243,14 +249,8 @@ pub fn computer(mut memory :Vec<i32>, input: Option<i32>) -> (Vec<i32>, Vec<Stri
                     OpCode::Output => {
 
                         let value : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, parameters_mode.first_operand, "ADRRESS");
-                        match parameters_mode.first_operand {
-                            Mode::Positional => {
-                                output_buffer.push(format!("Content of address #{} is {}", address, value));
-                            },
-                            Mode::Immediate => {
-                                output_buffer.push(format!("Content of address #{} is {}", instruction_cursor+1, value));
-                            }
-                        }
+                        output_buffer.push(value);
+
 
                     },
                     _ => panic!("Unknown opcode")
@@ -328,15 +328,6 @@ mod tests {
     use super::{OpCode, computer, Parameter, Mode, read_program_file};
     use std::path::PathBuf;
 
-    #[macro_use]
-    mod macros {
-        macro_rules! vec_string_to_vec_str {
-            ($vec:expr) => {
-                $vec.into_iter().map(|s| s.to_string()).collect()
-            };
-        }
-    }
-
     #[test]
     fn test_opcode_to_increment() {
         assert_eq!(OpCode::get_increment(OpCode::Add), 4);
@@ -379,57 +370,57 @@ mod tests {
     #[test]
     fn test_computer() {
 
-        let empty: Vec<String> = Vec::new();
+        let empty: Vec<i32> = Vec::new();
 
-        assert_eq!(computer( vec![1, 0, 0, 0, 99], None),
+        assert_eq!(computer( vec![1, 0, 0, 0, 99], &mut None),
                    (vec![2, 0, 0, 0, 99], empty.clone()), "Must be able to add two numbers");
-        assert_eq!(computer(vec![2, 3, 0, 3, 99], None),
+        assert_eq!(computer(vec![2, 3, 0, 3, 99], &mut None),
                    (vec![2, 3, 0, 6, 99], empty.clone()), "Must be able to multiply two numbers");
-        assert_eq!(computer(vec![2, 4, 4, 5, 99, 0], None),
+        assert_eq!(computer(vec![2, 4, 4, 5, 99, 0], &mut None),
                    (vec![2, 4, 4, 5, 99, 9801], empty.clone()), "Must be able to multiply two numbers and store the result");
-        assert_eq!(computer(vec![1, 1, 1, 4, 99, 5, 6, 0, 99], None),
+        assert_eq!(computer(vec![1, 1, 1, 4, 99, 5, 6, 0, 99], &mut None),
                    (vec![30, 1, 1, 4, 2, 5, 6, 0, 99], empty.clone()), "Must be able to handle complex program");
-        assert_eq!(computer(vec![1101, 100, -1, 4, 0], None),
+        assert_eq!(computer(vec![1101, 100, -1, 4, 0], &mut None),
                    (vec![1101, 100, -1, 4, 99], empty.clone()), "Can handle operation immediate value");
-        assert_eq!(computer(vec![3, 0, 4, 0, 99], Some(-42)),
-                   (vec![-42, 0, 4, 0, 99], vec_string_to_vec_str!(vec!["Content of address #0 is -42"])), "Able to write in output buffer");
+        assert_eq!(computer(vec![3, 0, 4, 0, 99], &mut Some(vec![-42])),
+                   (vec![-42, 0, 4, 0, 99], vec![-42]), "Able to write in output buffer");
 
         // --- Positional mode
         // equality
-        assert_eq!(computer(vec![3,9,8,9,10,9,4,9,99,-1,8], Some(8)),
-                   (vec![3,9,8,9,10,9,4,9,99,1,8], vec_string_to_vec_str!(vec!["Content of address #9 is 1"])), "Able to deal with equality (position mode)");
-        assert_eq!(computer(vec![3,9,8,9,10,9,4,9,99,-1,8], Some(12)),
-                   (vec![3,9,8,9,10,9,4,9,99,0,8], vec_string_to_vec_str!(vec!["Content of address #9 is 0"])), "Able to deal with non equality (position mode)");
+        assert_eq!(computer(vec![3,9,8,9,10,9,4,9,99,-1,8], &mut Some(vec![8])),
+                   (vec![3,9,8,9,10,9,4,9,99,1,8], vec![1]), "Able to deal with equality (position mode)");
+        assert_eq!(computer(vec![3,9,8,9,10,9,4,9,99,-1,8], &mut Some(vec![12])),
+                   (vec![3,9,8,9,10,9,4,9,99,0,8], vec![0]), "Able to deal with non equality (position mode)");
         // less than
-        assert_eq!(computer(vec![3,9,7,9,10,9,4,9,99,-1,8], Some(5)),
-                   (vec![3,9,7,9,10,9,4,9,99,1,8], vec_string_to_vec_str!(vec!["Content of address #9 is 1"])), "Able to deal with less than (position mode)");
-        assert_eq!(computer(vec![3,9,7,9,10,9,4,9,99,-1,8], Some(12)),
-                   (vec![3,9,7,9,10,9,4,9,99,0,8], vec_string_to_vec_str!(vec!["Content of address #9 is 0"])), "Able to deal with greater than (position mode)");
+        assert_eq!(computer(vec![3,9,7,9,10,9,4,9,99,-1,8], &mut Some(vec![5])),
+                   (vec![3,9,7,9,10,9,4,9,99,1,8], vec![1]), "Able to deal with less than (position mode)");
+        assert_eq!(computer(vec![3,9,7,9,10,9,4,9,99,-1,8], &mut Some(vec![12])),
+                   (vec![3,9,7,9,10,9,4,9,99,0,8], vec![0]), "Able to deal with greater than (position mode)");
 
         // --- Immediate mode
         // equality
-        assert_eq!(computer(vec![3,3,1108,-1,8,3,4,3,99], Some(8)),
-                   (vec![3,3,1108,1,8,3,4,3,99], vec_string_to_vec_str!(vec!["Content of address #3 is 1"])), "Able to deal with equality (immediate mode)");
-        assert_eq!(computer(vec![3,3,1108,-1,8,3,4,3,99], Some(12)),
-                   (vec![3,3,1108,0,8,3,4,3,99], vec_string_to_vec_str!(vec!["Content of address #3 is 0"])), "Able to deal with non equality (immediate mode)");
+        assert_eq!(computer(vec![3,3,1108,-1,8,3,4,3,99], &mut Some(vec![8])),
+                   (vec![3,3,1108,1,8,3,4,3,99], vec![1]), "Able to deal with equality (immediate mode)");
+        assert_eq!(computer(vec![3,3,1108,-1,8,3,4,3,99], &mut Some(vec![12])),
+                   (vec![3,3,1108,0,8,3,4,3,99], vec![0]), "Able to deal with non equality (immediate mode)");
         // less than
-        assert_eq!(computer(vec![3,3,1107,-1,8,3,4,3,99], Some(5)),
-                   (vec![3,3,1107,1,8,3,4,3,99], vec_string_to_vec_str!(vec!["Content of address #3 is 1"])), "Able to deal with less than (immediate mode)");
-        assert_eq!(computer(vec![3,3,1107,-1,8,3,4,3,99], Some(12)),
-                   (vec![3,3,1107,0,8,3,4,3,99], vec_string_to_vec_str!(vec!["Content of address #3 is 0"])), "Able to deal with greater than (immediate mode)");
+        assert_eq!(computer(vec![3,3,1107,-1,8,3,4,3,99], &mut Some(vec![5])),
+                   (vec![3,3,1107,1,8,3,4,3,99], vec![1]), "Able to deal with less than (immediate mode)");
+        assert_eq!(computer(vec![3,3,1107,-1,8,3,4,3,99], &mut Some(vec![12])),
+                   (vec![3,3,1107,0,8,3,4,3,99], vec![0]), "Able to deal with greater than (immediate mode)");
 
         // --- Positional mode
-        assert_eq!(computer(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], Some(1)),
-                   (vec![3,12,6,12,15,1,13,14,13,4,13,99,1,1,1,9], vec_string_to_vec_str!(vec!["Content of address #13 is 1"])), "Should jump if input 1 (position mode)");
-        assert_eq!(computer(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], Some(0)),
-                   (vec![3,12,6,12,15,1,13,14,13,4,13,99,0,0,1,9], vec_string_to_vec_str!(vec!["Content of address #13 is 0"])), "Should jump if input 0 (position mode)");
+        assert_eq!(computer(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], &mut Some(vec![1])),
+                   (vec![3,12,6,12,15,1,13,14,13,4,13,99,1,1,1,9], vec![1]), "Should jump if input 1 (position mode)");
+        assert_eq!(computer(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], &mut Some(vec![0])),
+                   (vec![3,12,6,12,15,1,13,14,13,4,13,99,0,0,1,9], vec![0]), "Should jump if input 0 (position mode)");
 
         // --- Immediate mode
-        assert_eq!(computer(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], Some(1)),
-                   (vec![3,3,1105,1,9,1101,0,0,12,4,12,99,1], vec_string_to_vec_str!(vec!["Content of address #12 is 1"])), "Should jump if input 1 (immediate mode)");
+        assert_eq!(computer(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], &mut Some(vec![1])),
+                   (vec![3,3,1105,1,9,1101,0,0,12,4,12,99,1], vec![1]), "Should jump if input 1 (immediate mode)");
         // --- Positional mode
-        assert_eq!(computer(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], Some(0)),
-                   (vec![3,3,1105,0,9,1101,0,0,12,4,12,99,0], vec_string_to_vec_str!(vec!["Content of address #12 is 0"])), "Should jump if input 0 (immediate mode)");
+        assert_eq!(computer(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], &mut Some(vec![0])),
+                   (vec![3,3,1105,0,9,1101,0,0,12,4,12,99,0], vec![0]), "Should jump if input 0 (immediate mode)");
 
         let program = vec![3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
                            1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
@@ -437,18 +428,18 @@ mod tests {
 
 
         // equal 8
-        let (_, buffer) = computer(program.clone(), Some(8));
-        let expected : Vec<String> = vec_string_to_vec_str!(vec!["Content of address #20 is 1000"]);
+        let (_, buffer) = computer(program.clone(), &mut Some(vec![8]));
+        let expected : Vec<i32> = vec![1000];
         assert_eq!(buffer, expected);
 
         // greater than 8
-        let (_, buffer) = computer(program.clone(), Some(220));
-        let expected : Vec<String> = vec_string_to_vec_str!(vec!["Content of address #20 is 1001"]);
+        let (_, buffer) = computer(program.clone(), &mut Some(vec![220]));
+        let expected : Vec<i32> = vec![1001];
         assert_eq!(buffer, expected);
 
         // less than 8
-        let (_, buffer) = computer(program.clone(), Some(7));
-        let expected : Vec<String> = vec_string_to_vec_str!(vec!["Content of address #32 is 999"]);
+        let (_, buffer) = computer(program.clone(), &mut Some(vec![7]));
+        let expected : Vec<i32> = vec![999];
         assert_eq!(buffer, expected);
 
 
@@ -477,6 +468,14 @@ mod tests {
         let path = PathBuf::from("./assets/dev_program.txt");
         let results = read_program_file(path).unwrap();
         assert_eq!(results, vec![1, 0, 0, -42 , 99], "Must read the right value from file")
+    }
+
+    #[test]
+    fn test_computer_can_store_more_than_one_input() {
+        let program = vec![3,5,3,6,99,-1,-1];
+        let (memory, _) = computer(program.clone(), &mut Some(vec![220, -42].into_iter().rev().collect()));
+        assert_eq!(vec![3,5,3,6,99,220,-42], memory);
+
     }
 }
 
