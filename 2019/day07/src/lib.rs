@@ -1,27 +1,42 @@
 use permutator::{Combination, Permutation};
-use common::computer::{computer, read_program_file};
+use common::computer::{read_program_file, Computer, ResumeMode, State};
 use std::path::PathBuf;
-use std::collections::VecDeque;
 
 #[derive(Debug)]
 struct Amplifier {
     setting: i32,
-    program: Vec<i32>
+    computer: Computer,
+    mode: ResumeMode
 }
 
 impl Amplifier {
-    fn new (setting : i32, program: Vec<i32>) -> Amplifier{
+    fn new (setting : i32, program: Vec<i32>, mode: ResumeMode) -> Amplifier{
+
+        let mut computer = Computer::new(program);
+        computer.set_resume_mode(mode);
+
         Amplifier {
             setting,
-            program
+            computer,
+            mode
         }
     }
 
     fn run(&mut self, input : i32) -> i32 {
-        //println!("setting {}", self.setting);
-        let (memory, mut buffer) = computer(self.program.clone(), Some(VecDeque::from(vec![self.setting, input])));
-        self.program = memory;
-        buffer.pop().unwrap()
+
+        // Put first setting
+        if !self.computer.is_setup() {
+            self.computer.add_input(self.setting)
+        }
+        self.computer.add_input(input);
+
+        let (_, buffer) = self.computer.run();
+        match buffer.last() {
+            Some(x) => {
+                x.to_owned()
+            },
+            None => panic!("Unable to get buffer value")
+        }
     }
 }
 
@@ -39,13 +54,18 @@ struct AmplifierChain {
 
 impl AmplifierChain {
 
-    fn new (settings : Vec<i32>, program: Vec<i32>, mode: AmplifierChainMode) -> AmplifierChain{
+    fn new (settings : Vec<i32>, program: Vec<i32>, mode: AmplifierChainMode) -> AmplifierChain {
 
-        let amplifier_a = Amplifier::new(*settings.get(0).unwrap(), program.clone());
-        let amplifier_b = Amplifier::new(*settings.get(1).unwrap(), program.clone());
-        let amplifier_c = Amplifier::new(*settings.get(2).unwrap(), program.clone());
-        let amplifier_d = Amplifier::new(*settings.get(3).unwrap(), program.clone());
-        let amplifier_e = Amplifier::new(*settings.get(4).unwrap(), program.clone());
+        let resume_mode = match mode {
+            AmplifierChainMode::Linear => ResumeMode::Disable,
+            AmplifierChainMode::Feedback => ResumeMode::Enable
+        };
+
+        let amplifier_a = Amplifier::new(*settings.get(0).unwrap(), program.clone(), resume_mode);
+        let amplifier_b = Amplifier::new(*settings.get(1).unwrap(), program.clone(), resume_mode);
+        let amplifier_c = Amplifier::new(*settings.get(2).unwrap(), program.clone(), resume_mode);
+        let amplifier_d = Amplifier::new(*settings.get(3).unwrap(), program.clone(), resume_mode);
+        let amplifier_e = Amplifier::new(*settings.get(4).unwrap(), program.clone(), resume_mode);
 
         AmplifierChain {
             chain: vec![amplifier_a, amplifier_b, amplifier_c, amplifier_d, amplifier_e],
@@ -69,11 +89,17 @@ impl AmplifierChain {
         let mut amplifier_index = 0;
         let mut amplifier;
         loop {
+
             amplifier = self.chain.get_mut(amplifier_index).unwrap();
-            println!("Amplifier {}", amplifier_index);
+
+            if amplifier.computer.state == State::Stopped {
+                break
+            }
+
             output = amplifier.run(output);
+
             amplifier_index+=1;
-            if amplifier_index > self.chain.len() {
+            if amplifier_index > self.chain.len() - 1 {
                 amplifier_index = 0
             }
         }
@@ -109,6 +135,12 @@ pub fn part_1() -> i32 {
     get_optimized_amplifier_chain(memory, &[0,1,2,3,4], AmplifierChainMode::Linear)
 }
 
+pub fn part_2() -> i32 {
+    let path = PathBuf::from("./assets/program.txt");
+    let memory = read_program_file(path).unwrap();
+    get_optimized_amplifier_chain(memory, &[5,6,7,8,9], AmplifierChainMode::Feedback)
+}
+
 
 fn get_all_combinations_settings(data : &[i32]) -> Vec<Vec<i32>> {
     let mut result = vec![];
@@ -126,7 +158,7 @@ mod tests {
     use crate::{get_all_combinations_settings, AmplifierChain, AmplifierChainMode, get_optimized_amplifier_chain};
 
     #[test]
-    fn test_get_all_combiantion_settings() {
+    fn test_get_all_combination_settings() {
         let data = &[1, 2, 3, 4];
         assert_eq!(23, get_all_combinations_settings(data).len());
     }
@@ -157,13 +189,21 @@ mod tests {
 
     #[test]
     fn test_amplifier_feedback_chain() {
-//        let program = vec![3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,
-//                           27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5];
-//        let settings = vec![9,8,7,6,5];
-//        let mut amplifier_chain = AmplifierChain::new(settings, program, AmplifierChainMode::Feedback);
-//        println!("{:?}", amplifier_chain);
-//        let result = amplifier_chain.run(0);
-//        assert_eq!(result, 139629729);
+        let program = vec![3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,
+                           27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5];
+        let settings = vec![9,8,7,6,5];
+        let mut amplifier_chain = AmplifierChain::new(settings, program, AmplifierChainMode::Feedback);
+        let result = amplifier_chain.run(0);
+        assert_eq!(result, 139629729);
+
+
+        let program = vec![3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54,
+                           -5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,
+                           53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10];
+        let settings = vec![9,7,8,5,6];
+        let mut amplifier_chain = AmplifierChain::new(settings, program, AmplifierChainMode::Feedback);
+        let result = amplifier_chain.run(0);
+        assert_eq!(result, 18216);
     }
 
 }

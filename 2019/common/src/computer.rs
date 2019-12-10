@@ -168,29 +168,31 @@ impl Parameter {
 }
 
 // Pause at output the return memory
-enum ResumeMode {
+#[derive(Debug, Clone, Copy)]
+pub enum ResumeMode {
     Enable,
     Disable
 }
 
 #[derive(PartialEq, Eq, Debug)]
-enum State {
+pub enum State {
     Started,
     Paused,
     Stopped
 }
 
-struct Computer {
+#[derive(Debug)]
+pub struct Computer {
     memory: Vec<i32>,
     output_buffer: Vec<i32>,
-    pub input_data: Option<VecDeque<i32>>,
-    resume_mode: ResumeMode,
-    state: State,
+    input_data: Option<VecDeque<i32>>,
+    pub resume_mode: ResumeMode,
+    pub state: State,
     instruction_cursor: usize
 }
 
 impl Computer {
-    fn new (program: Vec<i32>) -> Computer {
+    pub fn new (program: Vec<i32>) -> Computer {
         Computer {
             memory: program,
             output_buffer: vec![],
@@ -201,12 +203,18 @@ impl Computer {
         }
     }
 
-    fn set_resume_mode(&mut self, mode: ResumeMode) -> &mut Computer {
+    pub fn set_resume_mode(&mut self, mode: ResumeMode) {
         self.resume_mode = mode;
-        self
     }
 
-    fn add_input(&mut self, input : i32) {
+    pub fn is_setup(&self) -> bool {
+        match self.state {
+            State::Started => false,
+            State::Paused | State::Stopped => true,
+        }
+    }
+
+    pub fn add_input(&mut self, input : i32) {
         match &mut self.input_data {
             None => {
                 self.input_data = Some(VecDeque::new());
@@ -218,7 +226,7 @@ impl Computer {
         }
     }
 
-    fn run(&mut self) -> (Vec<i32>, Vec<i32>) {
+    pub fn run(&mut self) -> (Vec<i32>, Vec<i32>) {
 
         self.state = State::Started;
 
