@@ -2,12 +2,13 @@ use std::path::PathBuf;
 use std::error::Error;
 use std::io::{BufReader, BufRead};
 use std::fs::File;
+use std::collections::VecDeque;
 
 
 #[macro_use]
 mod macros {
     macro_rules! get_operand {
-        ($memory:ident, $memory_address:expr, $instruction_cursor:ident, $parameters_mode:expr, $text_error:expr) => {
+        ($memory:expr, $memory_address:expr, $instruction_cursor:expr, $parameters_mode:expr, $text_error:expr) => {
 
             match $parameters_mode {
                 Mode::Immediate => {
@@ -166,6 +167,202 @@ impl Parameter {
     }
 }
 
+// Pause at output the return memory
+enum ResumeMode {
+    Enable,
+    Disable
+}
+
+#[derive(PartialEq, Eq, Debug)]
+enum State {
+    Started,
+    Paused,
+    Stopped
+}
+
+struct Computer {
+    memory: Vec<i32>,
+    output_buffer: Vec<i32>,
+    pub input_data: Option<VecDeque<i32>>,
+    resume_mode: ResumeMode,
+    state: State,
+    instruction_cursor: usize
+}
+
+impl Computer {
+    fn new (program: Vec<i32>) -> Computer {
+        Computer {
+            memory: program,
+            output_buffer: vec![],
+            input_data: None,
+            resume_mode: ResumeMode::Disable,
+            state: State::Started,
+            instruction_cursor: 0
+        }
+    }
+
+    fn set_resume_mode(&mut self, mode: ResumeMode) -> &mut Computer {
+        self.resume_mode = mode;
+        self
+    }
+
+    fn add_input(&mut self, input : i32) {
+        match &mut self.input_data {
+            None => {
+                self.input_data = Some(VecDeque::new());
+                self.input_data.as_mut().unwrap().push_back(input);
+            },
+            Some(input_data) => {
+                input_data.push_back(input);
+            }
+        }
+    }
+
+    fn run(&mut self) -> (Vec<i32>, Vec<i32>) {
+
+        self.state = State::Started;
+
+        loop {
+
+            let increment;
+
+            let opcode_raw =  match self.memory.get(self.instruction_cursor + Command::OpCode as usize) {
+                Some(x) => x,
+                None => panic!("OPCODE: This memory address doesn't exist")
+            };
+
+            let (parameters_mode, opcode) = OpCode::get_opcode_and_modes_from_str(*opcode_raw);
+
+            if opcode == OpCode::Stop {
+                self.state = State::Stopped;
+                self.instruction_cursor += 1;
+                break;
+            };
+
+
+            match opcode {
+                OpCode::Add | OpCode::Multiply => {
+
+                    let operand_1 : i32 = get_operand!(self.memory, Command::OperandAddress1, self.instruction_cursor, parameters_mode.first_operand, "OPERAND1");
+                    let operand_2 : i32 = get_operand!(self.memory, Command::OperandAddress2, self.instruction_cursor, parameters_mode.second_operand, "OPERAND2");
+
+                    let result = match opcode {
+                        OpCode::Add => {
+                            operand_1 + operand_2
+                        },
+                        OpCode::Multiply => operand_1 * operand_2,
+                        _ => panic!("Unknown opcode")
+                    };
+
+                    let store_address = get_operand!(self.memory, Command::ResultAddress, self.instruction_cursor, Mode::Immediate, "RESULT");
+                    self.memory[store_address as usize] = result;
+                    increment = OpCode::get_increment(opcode);
+
+                },
+                OpCode::Output | OpCode::Store => {
+                    let address : i32 = get_operand!(self.memory, Command::OperandAddress1, self.instruction_cursor, Mode::Immediate, "ADRRESS");
+                    increment = OpCode::get_increment(opcode);
+                    match opcode {
+                        OpCode::Store => {
+                            match &mut self.input_data {
+                                Some(x) => {
+                                    match &mut x.pop_front() {
+                                        Some(data) => {
+                                            self.memory[address as usize] = *data;
+                                        },
+                                        None => panic!("Unable to get value from input Vec")
+                                    }
+                                },
+                                None => panic!("Unable get value to store")
+                            };
+                        },
+                        OpCode::Output => {
+                            let value : i32 = get_operand!(self.memory, Command::OperandAddress1, self.instruction_cursor, parameters_mode.first_operand, "ADRRESS");
+                            self.output_buffer.push(value);
+
+                            match self.resume_mode {
+                                ResumeMode::Enable => {
+                                    self.state = State::Paused;
+                                },
+                                ResumeMode::Disable => {},
+                            }
+                        },
+                        _ => panic!("Unknown opcode")
+                    }
+
+                },
+                OpCode::JumpIfTrue | OpCode::JumpIfFalse => {
+                    let value_checked : i32 = get_operand!(self.memory, Command::OperandAddress1, self.instruction_cursor, parameters_mode.first_operand, "VALUE CHECKED");
+                    let next_cursor_address : i32 = get_operand!(self.memory, Command::OperandAddress2, self.instruction_cursor, parameters_mode.second_operand, "NEXT CURSOR ADDRESS");
+                    let condition_valid: bool = match opcode {
+                        OpCode::JumpIfTrue => {
+                            if value_checked != 0 {
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                        OpCode::JumpIfFalse => {
+                            if value_checked == 0 {
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                        _ => panic!("Unknown opcode")
+                    };
+
+                    if condition_valid {
+
+                        self.instruction_cursor = next_cursor_address as usize;
+                        increment = 0;
+                    } else {
+                        increment = OpCode::get_increment(opcode);
+                    }
+                },
+                OpCode::Equals |OpCode::LessThan => {
+
+                    let operand_1 : i32 = get_operand!(self.memory, Command::OperandAddress1, self.instruction_cursor, parameters_mode.first_operand, "OPERAND 1");
+                    let operand_2 : i32 = get_operand!(self.memory, Command::OperandAddress2, self.instruction_cursor, parameters_mode.second_operand, "OPERAND 2");
+                    let result_address : i32 = get_operand!(self.memory, Command::ResultAddress, self.instruction_cursor, Mode::Immediate, "RESUTLT ADDRESS");
+
+                    let result = match opcode {
+                        OpCode::Equals => {
+                            if operand_1 == operand_2 {
+                                1
+                            } else {
+                                0
+                            }
+                        },
+                        OpCode::LessThan => {
+                            if operand_1 < operand_2 {
+                                1
+                            } else {
+                                0
+                            }
+                        },
+                        _ => panic!("Unknown opcode")
+                    };
+
+                    self.memory[result_address as usize] = result;
+                    increment = OpCode::get_increment(opcode);
+                }
+                _ => panic!("Unknown opcode")
+            }
+
+            self.instruction_cursor += increment;
+
+
+            match self.state {
+                State::Paused => break,
+                _ => ()
+            }
+        }
+
+        (self.memory.clone(), self.output_buffer.clone())
+    }
+}
+
 ///
 /// Loads program
 ///
@@ -188,138 +385,21 @@ pub fn read_program_file(path: PathBuf) -> Result<Vec<i32>, Box<dyn Error>> {
     Ok(result)
 }
 
-pub fn computer(mut memory :Vec<i32>, input: &mut Option<Vec<i32>>) -> (Vec<i32>, Vec<i32>) {
+pub fn computer(memory :Vec<i32>, input: Option<VecDeque<i32>>) -> (Vec<i32>, Vec<i32>) {
 
-    let mut instruction_cursor: usize = 0;
-    let mut output_buffer = vec![];
+    let mut computer = Computer::new(memory);
+    computer.input_data = input;
 
+    computer.run()
+}
 
-    loop {
+pub fn computer_feedback(memory :Vec<i32>, input: Option<VecDeque<i32>>) -> (Vec<i32>, Vec<i32>) {
 
-        let increment;
+    let mut computer = Computer::new(memory);
+    computer.resume_mode = ResumeMode::Enable;
+    computer.input_data = input;
 
-        let opcode_raw =  match memory.get(instruction_cursor + Command::OpCode as usize) {
-            Some(x) => x,
-            None => panic!("OPCODE: This memory address doesn't exist")
-        };
-
-        let (parameters_mode, opcode) = OpCode::get_opcode_and_modes_from_str(*opcode_raw);
-
-        if opcode == OpCode::Stop {
-            break;
-        };
-
-
-        match opcode {
-            OpCode::Add | OpCode::Multiply => {
-
-                let operand_1 : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, parameters_mode.first_operand, "OPERAND1");
-                let operand_2 : i32 = get_operand!(memory, Command::OperandAddress2, instruction_cursor, parameters_mode.second_operand, "OPERAND2");
-
-                let result = match opcode {
-                    OpCode::Add => {
-                        operand_1 + operand_2
-                    },
-                    OpCode::Multiply => operand_1 * operand_2,
-                    _ => panic!("Unknown opcode")
-                };
-
-                let store_address = get_operand!(memory, Command::ResultAddress, instruction_cursor, Mode::Immediate, "RESULT");
-                memory[store_address as usize] = result;
-                increment = OpCode::get_increment(opcode);
-
-            },
-            OpCode::Output | OpCode::Store => {
-                let address : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, Mode::Immediate, "ADRRESS");
-                increment = OpCode::get_increment(opcode);
-                match opcode {
-                    OpCode::Store => {
-                        match input {
-                            Some(x) => {
-                                match x.pop() {
-                                    Some(data) => {
-                                        memory[address as usize] = data;
-                                    },
-                                    None => panic!("Unable to get value from input Vec")
-                                }
-                            },
-                            None => panic!("Unable get value to store")
-                        };
-                    },
-                    OpCode::Output => {
-
-                        let value : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, parameters_mode.first_operand, "ADRRESS");
-                        output_buffer.push(value);
-
-
-                    },
-                    _ => panic!("Unknown opcode")
-                }
-
-            },
-            OpCode::JumpIfTrue | OpCode::JumpIfFalse => {
-                let value_checked : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, parameters_mode.first_operand, "VALUE CHECKED");
-                let next_cursor_address : i32 = get_operand!(memory, Command::OperandAddress2, instruction_cursor, parameters_mode.second_operand, "NEXT CURSOR ADDRESS");
-                let condition_valid: bool = match opcode {
-                    OpCode::JumpIfTrue => {
-                        if value_checked != 0 {
-                            true
-                        } else {
-                            false
-                        }
-                    },
-                    OpCode::JumpIfFalse => {
-                        if value_checked == 0 {
-                            true
-                        } else {
-                            false
-                        }
-                    },
-                    _ => panic!("Unknown opcode")
-                };
-
-                if condition_valid {
-
-                    instruction_cursor = next_cursor_address as usize;
-                    increment = 0;
-                } else {
-                    increment = OpCode::get_increment(opcode);
-                }
-            },
-            OpCode::Equals |OpCode::LessThan => {
-
-                let operand_1 : i32 = get_operand!(memory, Command::OperandAddress1, instruction_cursor, parameters_mode.first_operand, "OPERAND 1");
-                let operand_2 : i32 = get_operand!(memory, Command::OperandAddress2, instruction_cursor, parameters_mode.second_operand, "OPERAND 2");
-                let result_address : i32 = get_operand!(memory, Command::ResultAddress, instruction_cursor, Mode::Immediate, "RESUTLT ADDRESS");
-
-                let result = match opcode {
-                    OpCode::Equals => {
-                        if operand_1 == operand_2 {
-                            1
-                        } else {
-                            0
-                        }
-                    },
-                    OpCode::LessThan => {
-                        if operand_1 < operand_2 {
-                            1
-                        } else {
-                            0
-                        }
-                    },
-                    _ => panic!("Unknown opcode")
-                };
-
-                memory[result_address as usize] = result;
-                increment = OpCode::get_increment(opcode);
-            }
-            _ => panic!("Unknown opcode")
-        }
-
-        instruction_cursor += increment;
-    }
-
-    (memory, output_buffer)
+    computer.run()
 }
 
 
@@ -327,6 +407,8 @@ pub fn computer(mut memory :Vec<i32>, input: &mut Option<Vec<i32>>) -> (Vec<i32>
 mod tests {
     use super::{OpCode, computer, Parameter, Mode, read_program_file};
     use std::path::PathBuf;
+    use std::collections::VecDeque;
+    use crate::computer::{Computer, ResumeMode, State};
 
     #[test]
     fn test_opcode_to_increment() {
@@ -372,54 +454,54 @@ mod tests {
 
         let empty: Vec<i32> = Vec::new();
 
-        assert_eq!(computer( vec![1, 0, 0, 0, 99], &mut None),
+        assert_eq!(computer( vec![1, 0, 0, 0, 99], None),
                    (vec![2, 0, 0, 0, 99], empty.clone()), "Must be able to add two numbers");
-        assert_eq!(computer(vec![2, 3, 0, 3, 99], &mut None),
+        assert_eq!(computer(vec![2, 3, 0, 3, 99], None),
                    (vec![2, 3, 0, 6, 99], empty.clone()), "Must be able to multiply two numbers");
-        assert_eq!(computer(vec![2, 4, 4, 5, 99, 0], &mut None),
+        assert_eq!(computer(vec![2, 4, 4, 5, 99, 0], None),
                    (vec![2, 4, 4, 5, 99, 9801], empty.clone()), "Must be able to multiply two numbers and store the result");
-        assert_eq!(computer(vec![1, 1, 1, 4, 99, 5, 6, 0, 99], &mut None),
+        assert_eq!(computer(vec![1, 1, 1, 4, 99, 5, 6, 0, 99], None),
                    (vec![30, 1, 1, 4, 2, 5, 6, 0, 99], empty.clone()), "Must be able to handle complex program");
-        assert_eq!(computer(vec![1101, 100, -1, 4, 0], &mut None),
+        assert_eq!(computer(vec![1101, 100, -1, 4, 0], None),
                    (vec![1101, 100, -1, 4, 99], empty.clone()), "Can handle operation immediate value");
-        assert_eq!(computer(vec![3, 0, 4, 0, 99], &mut Some(vec![-42])),
+        assert_eq!(computer(vec![3, 0, 4, 0, 99], Some(VecDeque::from(vec![-42]))),
                    (vec![-42, 0, 4, 0, 99], vec![-42]), "Able to write in output buffer");
 
         // --- Positional mode
         // equality
-        assert_eq!(computer(vec![3,9,8,9,10,9,4,9,99,-1,8], &mut Some(vec![8])),
+        assert_eq!(computer(vec![3,9,8,9,10,9,4,9,99,-1,8], Some(VecDeque::from(vec![8]))),
                    (vec![3,9,8,9,10,9,4,9,99,1,8], vec![1]), "Able to deal with equality (position mode)");
-        assert_eq!(computer(vec![3,9,8,9,10,9,4,9,99,-1,8], &mut Some(vec![12])),
+        assert_eq!(computer(vec![3,9,8,9,10,9,4,9,99,-1,8], Some(VecDeque::from(vec![12]))),
                    (vec![3,9,8,9,10,9,4,9,99,0,8], vec![0]), "Able to deal with non equality (position mode)");
         // less than
-        assert_eq!(computer(vec![3,9,7,9,10,9,4,9,99,-1,8], &mut Some(vec![5])),
+        assert_eq!(computer(vec![3,9,7,9,10,9,4,9,99,-1,8], Some(VecDeque::from(vec![5]))),
                    (vec![3,9,7,9,10,9,4,9,99,1,8], vec![1]), "Able to deal with less than (position mode)");
-        assert_eq!(computer(vec![3,9,7,9,10,9,4,9,99,-1,8], &mut Some(vec![12])),
+        assert_eq!(computer(vec![3,9,7,9,10,9,4,9,99,-1,8], Some(VecDeque::from(vec![12]))),
                    (vec![3,9,7,9,10,9,4,9,99,0,8], vec![0]), "Able to deal with greater than (position mode)");
 
         // --- Immediate mode
         // equality
-        assert_eq!(computer(vec![3,3,1108,-1,8,3,4,3,99], &mut Some(vec![8])),
+        assert_eq!(computer(vec![3,3,1108,-1,8,3,4,3,99], Some(VecDeque::from(vec![8]))),
                    (vec![3,3,1108,1,8,3,4,3,99], vec![1]), "Able to deal with equality (immediate mode)");
-        assert_eq!(computer(vec![3,3,1108,-1,8,3,4,3,99], &mut Some(vec![12])),
+        assert_eq!(computer(vec![3,3,1108,-1,8,3,4,3,99], Some(VecDeque::from(vec![12]))),
                    (vec![3,3,1108,0,8,3,4,3,99], vec![0]), "Able to deal with non equality (immediate mode)");
         // less than
-        assert_eq!(computer(vec![3,3,1107,-1,8,3,4,3,99], &mut Some(vec![5])),
+        assert_eq!(computer(vec![3,3,1107,-1,8,3,4,3,99], Some(VecDeque::from(vec![5]))),
                    (vec![3,3,1107,1,8,3,4,3,99], vec![1]), "Able to deal with less than (immediate mode)");
-        assert_eq!(computer(vec![3,3,1107,-1,8,3,4,3,99], &mut Some(vec![12])),
+        assert_eq!(computer(vec![3,3,1107,-1,8,3,4,3,99], Some(VecDeque::from(vec![12]))),
                    (vec![3,3,1107,0,8,3,4,3,99], vec![0]), "Able to deal with greater than (immediate mode)");
 
         // --- Positional mode
-        assert_eq!(computer(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], &mut Some(vec![1])),
+        assert_eq!(computer(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], Some(VecDeque::from(vec![1]))),
                    (vec![3,12,6,12,15,1,13,14,13,4,13,99,1,1,1,9], vec![1]), "Should jump if input 1 (position mode)");
-        assert_eq!(computer(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], &mut Some(vec![0])),
+        assert_eq!(computer(vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9], Some(VecDeque::from(vec![0]))),
                    (vec![3,12,6,12,15,1,13,14,13,4,13,99,0,0,1,9], vec![0]), "Should jump if input 0 (position mode)");
 
         // --- Immediate mode
-        assert_eq!(computer(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], &mut Some(vec![1])),
+        assert_eq!(computer(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], Some(VecDeque::from(vec![1]))),
                    (vec![3,3,1105,1,9,1101,0,0,12,4,12,99,1], vec![1]), "Should jump if input 1 (immediate mode)");
         // --- Positional mode
-        assert_eq!(computer(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], &mut Some(vec![0])),
+        assert_eq!(computer(vec![3,3,1105,-1,9,1101,0,0,12,4,12,99,1], Some(VecDeque::from(vec![0]))),
                    (vec![3,3,1105,0,9,1101,0,0,12,4,12,99,0], vec![0]), "Should jump if input 0 (immediate mode)");
 
         let program = vec![3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
@@ -428,17 +510,17 @@ mod tests {
 
 
         // equal 8
-        let (_, buffer) = computer(program.clone(), &mut Some(vec![8]));
+        let (_, buffer) = computer(program.clone(), Some(VecDeque::from(vec![8])));
         let expected : Vec<i32> = vec![1000];
         assert_eq!(buffer, expected);
 
         // greater than 8
-        let (_, buffer) = computer(program.clone(), &mut Some(vec![220]));
+        let (_, buffer) = computer(program.clone(), Some(VecDeque::from(vec![220])));
         let expected : Vec<i32> = vec![1001];
         assert_eq!(buffer, expected);
 
         // less than 8
-        let (_, buffer) = computer(program.clone(), &mut Some(vec![7]));
+        let (_, buffer) = computer(program.clone(), Some(VecDeque::from(vec![7])));
         let expected : Vec<i32> = vec![999];
         assert_eq!(buffer, expected);
 
@@ -473,8 +555,66 @@ mod tests {
     #[test]
     fn test_computer_can_store_more_than_one_input() {
         let program = vec![3,5,3,6,99,-1,-1];
-        let (memory, _) = computer(program.clone(), &mut Some(vec![220, -42].into_iter().rev().collect()));
+        let (memory, _) = computer(program.clone(), Some(VecDeque::from(vec![220, -42])));
         assert_eq!(vec![3,5,3,6,99,220,-42], memory);
+
+    }
+
+
+    #[test]
+    fn test_resumable_computer() {
+
+        let program = vec![104, -42,104,48, 99];
+        let mut computer = Computer::new(program.clone());
+        computer.set_resume_mode(ResumeMode::Enable);
+        let (memory, buffer) = computer.run();
+        assert_eq!(vec![104,-42,104,48, 99], memory);
+        assert_eq!(&-42, buffer.last().unwrap());
+        assert_eq!(State::Paused, computer.state);
+        assert_eq!(2, computer.instruction_cursor);
+
+
+        let (memory, buffer) = computer.run();
+        assert_eq!(vec![104, -42,104,48, 99], memory);
+        assert_eq!(&48, buffer.last().unwrap());
+        assert_eq!(State::Paused, computer.state);
+        assert_eq!(4, computer.instruction_cursor);
+
+
+        let (memory, buffer) = computer.run();
+        assert_eq!(vec![104, -42,104,48, 99], memory);
+        assert_eq!(State::Stopped, computer.state);
+        assert_eq!(5, computer.instruction_cursor);
+
+
+        // init
+        let program = vec![3,9,4,9,3,10,4,10,99,-1,-1];
+        let mut computer = Computer::new(program.clone());
+        computer.set_resume_mode(ResumeMode::Enable);
+
+
+        // first step
+        computer.add_input(12);
+        let (memory, buffer) = computer.run();
+        assert_eq!(memory, vec![3,9,4,9,3,10,4,10,99,12,-1]);
+        assert_eq!(buffer.last().unwrap(), &12);
+        assert_eq!(computer.state, State::Paused);
+        assert_eq!(computer.instruction_cursor, 4);
+
+        // second step
+        computer.add_input(42);
+        let (memory, buffer) = computer.run();
+        assert_eq!(memory, vec![3,9,4,9,3,10,4,10,99,12,42]);
+        assert_eq!(buffer.last().unwrap(), &42);
+        assert_eq!(computer.state, State::Paused);
+        assert_eq!(computer.instruction_cursor, 8);
+
+
+        // halt
+        let (memory, _) = computer.run();
+        assert_eq!(memory, vec![3,9,4,9,3,10,4,10,99,12,42]);
+        assert_eq!(computer.state, State::Stopped);
+        assert_eq!(computer.instruction_cursor, 9);
 
     }
 }
