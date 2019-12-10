@@ -8,7 +8,7 @@ pub fn part_1(input_1: u32, input_2: u32) -> Vec<i32> {
     memory[1] = input_1 as i32;
     memory[2] = input_2 as i32;
     // Compute
-    let (memory, _) = computer(memory, &mut None);
+    let (memory, _) = computer(memory, None);
     memory
 }
 
@@ -22,7 +22,7 @@ pub fn part_2(result: u32) -> Option<(u32, u32)> {
             let mut memory = memory_template.clone();
             memory[1] = i as i32;
             memory[2] = j as i32;
-            let (memory, _) = computer(memory, &mut None);
+            let (memory, _) = computer(memory, None);
             if memory[0] == result as i32{
                 return Some((i, j))
             }
