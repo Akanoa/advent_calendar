@@ -4,13 +4,13 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 struct Amplifier {
-    setting: i32,
+    setting: i64,
     computer: Computer,
     mode: ResumeMode
 }
 
 impl Amplifier {
-    fn new (setting : i32, program: Vec<i32>, mode: ResumeMode) -> Amplifier{
+    fn new (setting : i64, program: Vec<i64>, mode: ResumeMode) -> Amplifier{
 
         let mut computer = Computer::new(program);
         computer.set_resume_mode(mode);
@@ -22,7 +22,7 @@ impl Amplifier {
         }
     }
 
-    fn run(&mut self, input : i32) -> i32 {
+    fn run(&mut self, input : i64) -> i64 {
 
         // Put first setting
         if !self.computer.is_setup() {
@@ -54,7 +54,7 @@ struct AmplifierChain {
 
 impl AmplifierChain {
 
-    fn new (settings : Vec<i32>, program: Vec<i32>, mode: AmplifierChainMode) -> AmplifierChain {
+    fn new (settings : Vec<i64>, program: Vec<i64>, mode: AmplifierChainMode) -> AmplifierChain {
 
         let resume_mode = match mode {
             AmplifierChainMode::Linear => ResumeMode::Disable,
@@ -73,7 +73,7 @@ impl AmplifierChain {
         }
     }
 
-    fn run(&mut self, input: i32) -> i32 {
+    fn run(&mut self, input: i64) -> i64 {
         match &mut self.mode {
             AmplifierChainMode::Linear => {
                 self.run_linear(input)
@@ -84,7 +84,7 @@ impl AmplifierChain {
         }
     }
 
-    fn run_feedback(&mut self, input: i32) -> i32{
+    fn run_feedback(&mut self, input: i64) -> i64{
         let mut output = input;
         let mut amplifier_index = 0;
         let mut amplifier;
@@ -106,7 +106,7 @@ impl AmplifierChain {
         output
     }
 
-    fn run_linear(&mut self, input: i32) -> i32 {
+    fn run_linear(&mut self, input: i64) -> i64 {
         let mut output = input;
         for amplifier in &mut self.chain {
             output = amplifier.run(output);
@@ -116,7 +116,7 @@ impl AmplifierChain {
 }
 
 
-fn get_optimized_amplifier_chain(program: Vec<i32>, seed : &[i32], mode: AmplifierChainMode) -> i32 {
+fn get_optimized_amplifier_chain(program: Vec<i64>, seed : &[i64], mode: AmplifierChainMode) -> i64 {
     let permutions = get_all_combinations_settings(seed);
     let mut max = 0;
     for permutation in permutions {
@@ -129,24 +129,24 @@ fn get_optimized_amplifier_chain(program: Vec<i32>, seed : &[i32], mode: Amplifi
     max
 }
 
-pub fn part_1() -> i32 {
+pub fn part_1() -> i64 {
     let path = PathBuf::from("./assets/program.txt");
     let memory = read_program_file(path).unwrap();
     get_optimized_amplifier_chain(memory, &[0,1,2,3,4], AmplifierChainMode::Linear)
 }
 
-pub fn part_2() -> i32 {
+pub fn part_2() -> i64 {
     let path = PathBuf::from("./assets/program.txt");
     let memory = read_program_file(path).unwrap();
     get_optimized_amplifier_chain(memory, &[5,6,7,8,9], AmplifierChainMode::Feedback)
 }
 
 
-fn get_all_combinations_settings(data : &[i32]) -> Vec<Vec<i32>> {
+fn get_all_combinations_settings(data : &[i64]) -> Vec<Vec<i64>> {
     let mut result = vec![];
     data.combination(data.len()).for_each(|mut c| {
         c.permutation().for_each(|p| {
-            let tmp = p.into_iter().map(|x| *x).collect::<Vec<i32>>();
+            let tmp = p.into_iter().map(|x| *x).collect::<Vec<i64>>();
             result.push(tmp)
         });
     });
@@ -155,7 +155,7 @@ fn get_all_combinations_settings(data : &[i32]) -> Vec<Vec<i32>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{get_all_combinations_settings, AmplifierChain, AmplifierChainMode, get_optimized_amplifier_chain};
+    use crate::{get_all_combinations_settings, AmplifierChain, AmplifierChainMode};
 
     #[test]
     fn test_get_all_combination_settings() {
