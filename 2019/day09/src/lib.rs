@@ -8,3 +8,10 @@ pub fn part_1() -> i64 {
     let (_, buffer) = computer(memory, Some(VecDeque::from(vec![1])));
     buffer.last().unwrap().to_owned()
 }
+
+pub fn part_2() -> i64 {
+    let path = PathBuf::from("./assets/boost.txt");
+    let memory = read_program_file(path).unwrap();
+    let (_, buffer) = computer(memory, Some(VecDeque::from(vec![2])));
+    buffer.last().unwrap().to_owned()
+}
