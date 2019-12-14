@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use common::computer::{computer, read_program_file};
 
-pub fn part_1(input_1: u32, input_2: u32) -> Vec<i64> {
+pub fn part_1(input_1: u32, input_2: u32) -> i64 {
     let path = PathBuf::from("./assets/program.txt");
     let mut memory = read_program_file(path).unwrap();
     // Define inputs
@@ -9,7 +9,7 @@ pub fn part_1(input_1: u32, input_2: u32) -> Vec<i64> {
     memory[2] = input_2 as i64;
     // Compute
     let (memory, _) = computer(memory, None);
-    memory
+    *memory.get(&0).unwrap()
 }
 
 pub fn part_2(result: u32) -> Option<(u32, u32)> {
@@ -23,7 +23,7 @@ pub fn part_2(result: u32) -> Option<(u32, u32)> {
             memory[1] = i as i64;
             memory[2] = j as i64;
             let (memory, _) = computer(memory, None);
-            if memory[0] == result as i64{
+            if *memory.get(&0).unwrap() == result as i64{
                 return Some((i, j))
             }
         }
