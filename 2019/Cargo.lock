@@ -63,6 +63,13 @@ name = "day08"
 version = "0.1.0"
 
 [[package]]
+name = "day09"
+version = "0.1.0"
+dependencies = [
+ "common 0.1.0",
+]
+
+[[package]]
 name = "indextree"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
