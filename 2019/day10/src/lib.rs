@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::error::Error;
 use std::collections::HashMap;
 use std::mem;
+use std::f64::consts::PI;
 
 
 /// Returns the mantissa, exponent and sign as integers.
@@ -51,6 +52,16 @@ impl Asteroid {
 
         (module,argument)
     }
+}
+
+fn normalize_atan2(y: f64, x : f64) -> f64 {
+
+    let mut theta = (x).atan2(y);
+    if x < 0.0 {
+        theta += 2.0 * PI;
+    }
+
+    theta
 }
 
 pub fn part_1() -> u64{
@@ -145,7 +156,7 @@ fn read_from_file(path: PathBuf) -> Result<Vec<Asteroid>, Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-    use crate::{Asteroid, read_from_file, get_number_asteroids_visible, get_best_asteroid, Position};
+    use crate::{Asteroid, read_from_file, get_number_asteroids_visible, get_best_asteroid, Position, normalize_atan2};
     use std::f64::consts::{PI, FRAC_PI_4, FRAC_PI_2};
 
     #[test]
@@ -236,5 +247,19 @@ mod tests {
         let asteroids = read_from_file(path).unwrap();
         let result = get_best_asteroid(asteroids);
         assert_eq!(result, (Position { x: 11.0, y:13.0 }, 210));
+    }
+
+    #[test]
+    fn test_normalize_atan2() {
+        assert_eq!(normalize_atan2(1.0,0.0), 0.0);
+        assert_eq!(normalize_atan2(0.0,1.0), FRAC_PI_2);
+        assert_eq!(normalize_atan2(-1.0,0.0), PI);
+        assert_eq!(normalize_atan2(0.0,-1.0), 3f64 * FRAC_PI_2);
+        assert_eq!(normalize_atan2(-0.8,-0.6), 3.7850937623830774);
+        assert_eq!(normalize_atan2(0.6,0.8), 0.9272952180016123);
+        assert_eq!(normalize_atan2(1.2,1.6), 0.9272952180016123);
+        assert_eq!(normalize_atan2(-0.8,0.6), 2.498091544796509);
+        assert_eq!(normalize_atan2(-0.8,-0.6), 3.7850937623830774);
+        assert_eq!(normalize_atan2(0.6,-0.8), 5.355890089177974);
     }
 }
