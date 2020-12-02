@@ -1,7 +1,6 @@
+.idea
 .gradle
-out
-build
-lib
-gradle
-gradlew
 gradlew.bat
+gradlew
+gradle
+day01/build
