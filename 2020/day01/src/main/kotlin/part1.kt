@@ -13,7 +13,7 @@ fun runPart1(input: List<Int>) : Int {
 
 fun part1() {
 
-    val numbers = readInputFile("day01/ressources/input.txt")
+    val numbers = readInputFile("day01/src/main/resources/input.txt")
         .map { line -> line.toInt() }
 
     val result = runPart1(numbers)
