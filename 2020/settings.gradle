@@ -1,0 +1,4 @@
+
+rootProject.name = '2020'
+include 'day02'
+

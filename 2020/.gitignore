@@ -1,0 +1,7 @@
+.gradle
+out
+build
+lib
+gradle
+gradlew
+gradlew.bat
